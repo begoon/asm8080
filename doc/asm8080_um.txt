@@ -1,0 +1,212 @@
+-------------------------------------------------------------------------------
+			      asm8080 User Manual
+
+
+Cover:		asm8080 V0.9.2 to V1.0.4
+Copyright(c):	See below.
+Author(s):	Claude Sylvain
+Created:	17 March 2011
+Last modified:	1 January 2012
+Revision:	0.9.7
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+Copyright (c) <2007-2012> <jay.cotton@oracle.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to
+deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+			       Table of contents
+
+1	Introduction to the assembler
+1.1	Calling the assembler
+2	Assembler description
+2.1	Assembler options
+2.2	Assembler directives
+2.3	Operators
+2.3.1	Standard operators
+2.3.2	"C" and "Pascal" like operators
+3	Assembler particularities
+3.1	Expression parser
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+1	Introduction to the assembler
+
+1.1	Calling the assembler
+
+The assembler is called by entering a line of the form:
+
+	asm8080 <file> [<options>]
+
+Where asm8080 represents the filename of the assembler, <file>	is the name
+of the source file to be assembled, and [<options>] represents zero or
+more assembler option specifiers.  The assembler's assembly language
+input file is expected to have a filename extension; if none is explicitly
+specified, a filename extension of the form .asm is assumed.
+
+2	Assembler description
+
+2.1	Assembler options
+
+Assembler options are listed and described below.
+
+-h
+	Display the help screen.
+
+-I<dir>
+	Add directory to the include file search path.
+	Notes: Path delimiter is not mandatory, at end of <dir>.
+
+-l<filename>
+	This option specifies that <filename> is the name of the file
+	in which the assembler's output listing is to be placed.  The
+	default is to place the output listing in a file having the
+	same name as the input file, but with the filename extension
+	.lst appended.
+
+-o<filename>
+	This option allows the user to explicitly name the output
+	object files, and assigns the name <filename> to them.  If this
+	option is not specified, the object files will have the same
+	name as the input file, but with the filename extension
+	.bin and .hex appended.  If the <filename> assigned via this
+	option have a file name extension, this filename extension
+	will be ignored.
+
+-v
+	Display assembler version.
+
+2.2	Assembler directives
+
+Supported assembler directives are:
+
+	ORG
+	END
+
+	INCLUDE
+
+	DB
+	DW
+	DS
+
+	IF
+	ELSE
+	ENDIF
+
+	MACRO
+	ENDM
+
+	EQU
+	SET
+
+2.3	Operators
+
+2.3.1	Standard operators
+
+Supported standard operators are:
+
+	+
+	-
+	*
+	/
+
+	LOW
+	HIGH
+
+	MOD
+
+	SHL
+	SHR
+
+	EQ
+	NE
+	LT
+	LE
+	GT
+	GE
+
+	NOT
+	AND
+	OR
+	XOR
+
+2.3.2	"C" and "Pascal" like operators
+
+Supported "C" and "Pascal" like operators are:
+
+	&
+	&&
+
+	|
+	||
+
+	^	(XOR)
+
+	~	(one's complement)
+
+	<<
+	>>
+
+	=	(Pascal equality)
+	==
+
+	>
+	>=
+
+	<
+	<=
+
+3	Assembler particularities
+
+3.1	Expression parser
+
+Expression parser evaluate the expression linearly, and there is no
+priority on operators.
+So, it is important to use parentheses to set the order the expression
+must be evaluated.
+
+Example:
+	4 + 7 * 8
+
+	Will be evaluated as:
+
+	4 + 7	= 11
+	11 * 8	= 88
+
+	If you want multiplication be done first, you must add parenthesis
+	like below:
+
+	4 + (7 * 8)
+
+   	Will be evaluated as:
+
+	4 + (	= 4
+	7 * 8	= 56
+  	)	= 60
+
+This expression parser particularity is known to cause problems when
+assembling some programs.
+-------------------------------------------------------------------------------
+
+
+
+

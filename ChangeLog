@@ -1,0 +1,676 @@
+******************************************************************************
+Filename:	ChangeLog
+Description:	asm8080 change log.
+Copyright(c):	See below.
+Author(s):	Jay Cotton, Claude Sylvain
+Created:	2007
+Last modified:	6 January 2012
+Notes:
+*******************************************************************************
+
+
+-------------------------------------------------------------------------------
+
+Copyright (c) <2007-2012> <jay.cotton@oracle.com>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to
+deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense,
+and/or sell copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+-------------------------------------------------------------------------------
+
+
+-------------------------------------------------------------------------------
+Date:		11 December 2010
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- Creation of the project using Jay Cotton "asm8080" project.
+		- Created a cygwin makefile to be able to compile under
+		  Cygwin.
+		- Project structure tuning.  
+		- Made possible to use underscore ('_') in labels.
+		- Made possible to define a label on a seperated line
+		  (line without opcode).
+		- Added "no label" found error.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		12 December 2010
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- project structure tuning.
+		- Makefile tuning.
+		- Resolved many compiler warning messages.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		18 December 2010
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- Fixed a bad configuration in "mf_c" makefile.
+		- Fixed labels that are still viewed in a "FALSE" "if/endif".
+		- Fixed opcode that are still parsed in a "FALSE" "if/endif".
+		- Added "if/endif" overflow/underflow check.
+		- Done some clean up.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		19 December 2010
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- Fixed flood on "endif" underflow.
+		- Fixed "db", "dw" processing.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		23 December 2010
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- Non fonctionnal "DS" implementation is now fully
+		  functionnal :-)  This was a lot of work :-/
+		- Now, items in operand field can be separated using "Tab".
+		- "DB" and "DW" improvement.
+		- Now, standard Intel 8080 assembler numerical base
+		  specifier are supported :-)
+		- Removed support for "0x".  
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		24 December 2010
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- "DS" is not for defining string, but for defining
+		  Data Storage.  Was corrected!
+		- Enable to define string using "DW".
+	      	- Implemented "ELSE".
+		- Created "asm_dir.c/h" and "opcode.c/h" to begin
+		  modularization process.
+		- Error is displayed when attempting to use 16-bit
+		  operand with "IN/OUT".
+		- Removed "ENDLOCAL", because this was not implemented,
+	     	  and is not a standard Intel 8080 assembler directive.	
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		25 December 2010
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- Now, there is 2 keywords table.  One for the assembler
+		  directives, and one for the processor opcodes.
+
+		- Modified "Parse()" to be able to work with 2 keywords
+		  tables.
+
+		- In "Parse()", added overflow checking.
+		- In "Parse()", fixed comment processing.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		26 December 2010
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- Moved all assembler directive functions in "asm_dir.c"
+		- Moved all opcode functions in "opcode.c"
+		- Added range check to opcode functions that use 8-bit
+	          operand.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		27 December 2010
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- In "main.c", in "OpenIncludeFile()", added error check
+	       	  to avoid crash.
+		- Replaced keyword include "$" by "INCLUDE".
+		- Put expression evaluator an "rpn.c" module.
+		- Made some improvements on expression evaluator.  Now
+		  "-1" is evaluated correctly :-)
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		28 December 2010
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- In "opcode.c", completion of over range check on 16-bit
+		  value.
+		- In "opcode.c", done some optimisation.
+		- Now, on error/warning, file name is displayed/printed,
+		  and line number is relative to that file :-)
+		- Now, "INCLUDE" support both file name with or without
+	      	  quotes :-)
+	  	- Fixed a parenthesis evaluation bug in expression
+      		  evaluator ("rpn.c", "rpn()").
+		- Fixed a problem that make expression evaluator unable
+	      	  to evaluate chained expression like:
+	  		1-1-1-1-1-1
+		- "LOW" and "HIGH" operators is now implemented.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		30 December 2010
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- A "INCLUDE" processing problem was resolved.
+		- A register pair processing problem was resolved.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		31 December 2010
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- A "jam" bug resolved in "rpn.c", "extract_byte()".
+		- Following problem has been resolved:
+			- When an empty source file is included, i8080-as
+			  jam.
+			- When source file have not and "END" directive,
+			  i8080-as jam.
+		- Now, the "END" directive is optional.
+		- Many other problems has been resolved.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		1 January 2011
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- "-I" (Include) option implemented :-)
+		- Done some correction on how "equation" is parsed in some
+		  opcode process.  This have fixed a lot of problem :-)
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		2 January 2011
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- Renamed "rpn.c/h" module as "exp_parser.c/h", since
+		  the expression parser is not a RPN (Reverse Polish Notation)
+   		  expression parser, but a DAL (Direct Algebraic Logic)
+   		  expression parser.
+		- In "exp_parser.c", now, parenthesis are processed
+	       	  correctly :-)
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		3 January 2011
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- In "exp_parser.c", in "dalep()", tuned the way stack is
+   		  removed.
+		- Updated help display (option "-h").
+		- Added "-v" option (display version).
+		- Fixed a bug in "opcode.c", in "reg_pair()".  That bug
+		  can make i8080-as crash.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		4 January 2011
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- Now, operand evaluation work correctly on the
+		  following instructions:
+		  	in	ADDR1 + OFFSET
+			out	ADDR1 + OFFSET
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		8 January 2011
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- Modified makefiles to be able to built project without
+		  using GNU make "-f" option.
+
+		- Now, the following line can be assembled correctly:
+		  	db	label_1-label_2
+
+		- Revised/improved "proc_db()" and "proc_dw()", in
+		  "asm_dir.c" module.
+
+		- Revised all opcodes processing, and make use of
+		  expression parser whenever possible.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		15 January 2011
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- In "opcode.c", renamed "reg_pair()" as "parse_reg16bits()".
+		- In "opcode.c", modified "parse_reg()" to be able
+		  to check if register is allowed.
+		- Checked if it is necessary to check if register is
+		  allowed in "DestReg()" and "SourceReg().
+		  The answer is NO.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		12 February 2011
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- Resolved an "if" problem, that appear when more than
+		  1 level of "if" are used.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		12 March 2011
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- Increased maximum label size from 32 to 64 characters.
+		  Seems that 32 characters is not enough long.
+
+		- In "exp_parser.c", in "dalep()", made "label" match
+		  the maximum size of a label.  This made problems
+		  when using long equate symbols.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		13 March 2011
+By:		Claude Sylvain
+Version:	0.9.0
+
+Notes:		- Done a general project revision, and cleanup.
+
+		- In main.c, in "do_asm()", made empty source line
+		  appearing as single empty line in the listing file,
+		  instead of appearing as double empty lines.
+
+		- In main.c, in "do_asm()", made empty source lines always
+		  listed as type "LIST_ONLY".  Was not previously always
+		  the case.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+By:		Jay Cotton
+
+3-23-11:	Autotooled the project to make it more portable to other
+		systems.
+
+3-22-11:	Imported changes from Claude Sylvain.
+		These changes include but are not limited to:
+			Segragate code into functional units.
+			Document sections more clearly.
+			Fix the expression parser WRT DAL vs RPN parseing.
+		A BIG thanks to Claude for his work on this code.
+
+Dark Ages:	Wrote the first version of the code on a weekend and
+		put a few fixes into it.   
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		26 March 2011
+By:		Claude Sylvain
+Version:	0.9.1
+
+Notes:		- In ".c" and ".h" modules, update the copyright notice,
+   		  since Jay Cotton Email address have changed.
+		  Was Jay.Cotton@Sun.COM; and now jay.cotton@oracle.com.
+		  Also change year from <2007> to <2007-2011>.
+
+		- Added "-l" option (listing file).
+
+	      	- Added "-o" option (output file).
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		27 March 2011
+By:		Claude Sylvain
+Version:	0.9.1
+
+Notes:		- Made some modification on source files and make files
+		  to be able to built on Cygwin, GNU/Linux, Windows, and
+		  Solaris (32-bit and 64-bit).
+		  But only tested on Cygwin 32-bit and GNU/Linux 32-bit.
+		  Notes: Make file in <project>/cygwin/ can both serve to
+		  built for Cygwin 32-bit and GNU/Linux 32-bit.
+
+		- In "main.c", in "process_input_file()", removed
+	    	  processing of binary file name, because it is done
+	  	  elsewhere now.  Also, done some optimizations.
+
+		- In "main.c", in "process_input_file()", if input
+		  file name have no extension, assume that the
+		  input file name have an ".asm" extension.
+
+		- Started writing a User Manual (i8080asm_um-0.9.1.txt).  
+
+		- Path delimitor at end of path is no more mandatory,
+		  when using -I option.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		10 April 2011
+By:		Claude Sylvain
+Version:	0.9.2
+
+Notes:		- Changed project name as "asm8080" to match the original
+		  project name.  Was "i8080-as".
+
+		- Merged my local project with the one in CVS.
+
+		- Resolved some problems in make files.
+
+		- Added doc, src, src_old, test directories.
+
+		- Updated TODO and ChangLog files.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		28 June 2011
+By:		Claude Sylvain
+Version:	0.9.3
+
+Notes:		- In "main.c", in "PrintList()", improved the listing
+		  output.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		26 November 2011
+By:		Claude Sylvain
+Version:	0.9.4
+Notes:		General cleanup.  Removed dead code.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		3 December 2011
+By:		Claude Sylvain
+Version:	0.9.5
+
+Notes:		- in "asm_dir.c", in "proc_ds()"; "proc_ds()" do not
+		  have to process a list of expression, but just
+		  one expression.  This was a major bug.
+		  Also seems that "proc_ds()" local expression
+		  parser had some flaws.
+		  That bug was discovered by Jay Cotton, using
+		  "als8.asm" module.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		10 December 2011
+By:		Claude Sylvain
+Version:	0.9.6
+
+Notes:		- Program Counter management improvement.  Now, PC is
+		  checked for over range.  This avoid "asm8080" to
+		  crash when PC do a roll over, or have an invalid value.
+
+		- Expression parser improvement.  Now, expression parser
+		  can handle more levels.
+
+		- Now, can built "test/als8.asm" successfully.
+
+		- Binary object file (.bin) do not have multiple code sections
+		  anymore.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		17 December 2011
+By:		Claude Sylvain
+Version:	0.9.7
+
+Notes:		- Removed "USE_BINARY_HEADER" option and all associated
+		  code, because "header" is usually not emmbedded in
+		  binary object file.  Futhermore, support of multi-code
+		  sections in binary object file have been removed in
+		  asm8080 V0.9.6.
+
+		- Added Intel hexadecimal object file support.
+
+		- Updated the user manual (v0.9.4).
+
+		- In "main.c", in "DumpBin()", "LIST_WORDS" was not
+		  handled properly (MSB, LSB inverted).
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		18 December 2011
+By:		Claude Sylvain
+Version:	0.9.8
+
+Notes:		- In "asm_dir.c", in "proc_ds()", call "ProcessDumpHex()"
+		  and update "target.pc_org" to make "DS" memory
+		  section not included in Intel hexadecimal object file.
+
+		- In "main.c", in "ProcessDumpHex()", process
+		  "End Of File" record even if there is no data record
+		  generated.
+
+		- There was no check on "DS" negative value, and this
+		  was making program corrupted without user knowing
+		  that problem.
+
+		- In "als8.asm" (the patched version), "OUTP8" and
+		  "INP8" was not set correctly, and this make some
+		  "DS" directive having negative value.
+
+		- Now, there is no more "roll over" effect applied
+		  to "target.pc".  So, filtering must be applied
+		  when using "target.pc" to handle properly PC
+		  over range condition.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		24 December 2011
+By:		Claude Sylvain
+Version:	0.9.9
+
+Notes:		- Added "Phasing error" detection.
+		- Improved Program Counter management.
+		- Improved labels management.
+
+		- Bad code generation when building "als8.asm" test case, was
+		  due to misplaced "EQU" ("OUTP8" and "INP8" equate) that
+		  was producing phasing errors.
+		  Now that asm8080 can detect phasing error, such coding
+		  errors can be detected, and bad code generation avoided.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		25 December 2011
+By:		Claude Sylvain
+Version:	1.0.0
+
+Notes:		- Label/name processing improvement.
+		  Now, labels and names can be distinguish each from
+		  other.
+
+		- Lines begining with '$' character seems to contain special
+		  assembler directive on some 8080 assemblers.
+		  For now, "asm8080" ignore these lines, and just
+		  display a warning message.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		26 December 2011
+By:		Claude Sylvain
+Version:	1.0.0
+
+Notes:		- Implemented "SET" assembly directive.  Was previously
+		  handle as an "EQU".
+		- Done "EQU" assembly directive improvement.
+		- Done Symbols list improvement.
+		- Done Symbols print improvement.
+		- Done several tests/corrections using assembly program
+	          that can be run on SOL-20 simulator (Solace).
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		27 December 2011
+By:		Claude Sylvain
+Version:	1.0.0
+
+Notes:		- Symbols table printing improvement.
+
+		- Now, "asm8080" warn user if no file name extension
+		  was specified on the input file name.
+
+		- Created "msg.c/h" that provide print messages
+	      	  functionnalities; and updated all project modules
+	  	  to use these functionnalities.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		28 December 2011
+By:		Claude Sylvain
+Version:	1.0.1
+
+Notes:		- Implemented the following operators:
+			HIGH
+			LOW
+			MOD
+			SHL
+			SHR
+			EQ
+			LT
+			LE
+			GT
+			GE
+			NE
+			NOT
+			XOR
+
+		- Expression parser improvement.
+
+		- Some "C" like operators are no more supported,
+		  because of conflic with assembler special characters.
+
+		- In "project.h", added a conditionnal compilation
+		  symbol to be able compile asm8080 without
+		  support for "C" like operators.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		29 December 2011
+By:		Claude Sylvain
+Version:	1.0.2
+
+Notes:		- Implemented "MACRO", "ENDM" assembly directive.
+		  However, macro parameters are not supported, neither
+		  "LOCAL" assembler directive.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		30 December 2011
+By:		Claude Sylvain
+Version:	1.0.3
+
+Notes:		- In "main.c", in "update_pc()", keep track on the lowest
+		  and highest PC value only if not processing "DS"
+		  assembly directive.  This is necessary since "DS"
+		  modify PC value, and do not generate code.  This avoid
+		  binary object file to include "DS" code section.
+
+		- Updated user manual.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		1 January 2012
+By:		Claude Sylvain
+Version:	1.0.4
+
+Notes:		- This is the New Year Day, and I updated all the dates on
+		  the Copyright notices.
+
+		- Changed the way asm8080 behave when it is called without
+	      	  any arguments.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		3 January 2012
+By:		Claude Sylvain
+Version:	1.0.4
+
+Notes:		- Fixed a built problem that happen on GNU/Linux.
+		  "stdint.h" must be included in "project.h", when
+		  building on GNU/Linux computers.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		4 January 2012
+By:		Claude Sylvain
+Version:	1.0.4
+
+Notes:		- Moved some "include" that use conditionnal compilation
+		  in "project.h", to simplify application maintenance.
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+Date:		6 January 2012
+By:		Claude Sylvain
+Version:	1.0.5
+
+Notes:		- "DW" assembler directive was not working as expected.
+		  On single character ('c'), the single character ASCII
+		  code was appearing in MSB of the word instead of the
+		  LSB.
+		  On expression, the value of expression was stored
+		  in Big Endian format instead of Little Endian format.
+-------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------------------------------------------------------------------------------
+Date:
+By:
+Version:
+Notes:
+-------------------------------------------------------------------------------
+
+
