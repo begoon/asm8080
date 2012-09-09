@@ -111,6 +111,7 @@ static void print_msg(const char *str_type, char *msg, int code)
 				"*** %s %d in \"%s\" @%d: %s\n", str_type,
 				code, in_fn[file_level], codeline[file_level],
 				msg);
+	exit(1);
 }
 
 
@@ -157,6 +158,7 @@ static void print_msg_c(const char *str_type, char *msg, int code, char c)
 	fprintf(	stderr,
 				"*** %s %d in \"%s\" @%d: %s (\"%c\")\n", str_type,
 				code, in_fn[file_level], codeline[file_level], msg, c);
+	exit(1);
 }
 
 
@@ -203,6 +205,7 @@ static void print_msg_s(const char *str_type, char *msg, int code, char *s)
 	fprintf(	stderr,
 				"*** %s %d in \"%s\" @%d: %s (\"%s\")\n", str_type,
 				code, in_fn[file_level], codeline[file_level], msg, s);
+	exit(1);
 }
 
 
@@ -249,6 +252,7 @@ static void print_msg_d(const char *str_type, char *msg, int code, int d)
 	fprintf(	stderr,
 				"*** %s %d in \"%s\" @%d: %s (%d)\n", str_type,
 				code, in_fn[file_level], codeline[file_level], msg, d);
+	exit(1);
 }
 
 
