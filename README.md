@@ -11,3 +11,11 @@ To build on Windows, start your Visual Studio command line prompt and:
    
     cd windows
     nmake
+    
+To build on Mac:
+
+    cd mac
+    make
+    
+Also, there is a bug fixed when the assembler didn't return non-zero
+exit code on a complication error.
