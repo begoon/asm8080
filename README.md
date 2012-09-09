@@ -1,4 +1,4 @@
-This project is a fork of the [Intel 8080 Assembler][asm8080] by Jay Cotton
+This project is a fork of the Intel 8080 Assembler by Jay Cotton
 and Claude Sylvain.
 
 http://asm8080.sourceforge.net/
