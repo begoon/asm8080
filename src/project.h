@@ -3,13 +3,13 @@
  *	Description:	Project header file.
  *	Copyright(c):	See below...
  *	Author(s):		Claude Sylvain
- *	Created:			11 December 2010
- *	Last modified:	4 January 2012
+ *	Created:			2010-12-11
+ *	Last modified:	2015-08-30
  *	Notes:
  *	************************************************************************* */
 
 /*
- * Copyright (c) <2007-2012> <jay.cotton@oracle.com>
+ * Copyright (c) <2007-2017> <lbmgmusic@gmail.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -30,6 +30,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+
+/*	*************************************************************************
+ *	************************************************************************* */
 
 #ifndef _PROJECT_H
 #define _PROJECT_H
@@ -66,11 +69,10 @@
  *	************************************************************************* */
 
 #define SRC_LINE_WIDTH_MAX			256		/*	Source Line Maximum Width. */
-#define 	FILES_LEVEL_MAX			16			/*	Maximum Files Level. */
+#define FILES_LEVEL_MAX				16			/*	Maximum Files Level. */
 
-/*	Symbol Maximum Size.
- *	*/	
-#define SYMBOL_SIZE_MAX				64
+#define EQUATION_SIZE_MAX			160		/*	Equation maximum size. */
+#define SYMBOL_SIZE_MAX				64			/*	Symbol Maximum Size. */
 
 /*	Label Maximum Size.
  *	Notes: This value is (only) 6 in some 8080 legacy assemblers.
@@ -175,9 +177,9 @@ typedef struct targ
 } TARG;
 
 
-
-
 #endif
+
+
 
 
 

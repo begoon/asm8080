@@ -4,12 +4,12 @@
  *	Copyright(c):	See below...
  *	Author(s):		Claude Sylvain
  *	Created:			24 December 2010
- *	Last modified:	4 January 2012
+ *	Last modified:	26 May 2013
  * Notes:
  *	************************************************************************* */
 
 /*
- * Copyright (c) <2007-2012> <jay.cotton@oracle.com>
+ * Copyright (c) <2007-2017> Jay Cotton<lbmgmusic@gmail.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -71,6 +71,7 @@
  *	****************** */
 
 static char *parse_reg16bits(char *text, unsigned char ar);
+static char is_str_reg(char *text);
 static char *DestReg(char *text);
 static char *SourceReg(char *text);
 
@@ -193,25 +194,58 @@ const keyword_t	OpCodes[] =
 	{"RRC", proc_rrc},			{"RAL", proc_ral},	{"RAR", proc_rar},
 	{"CMA", proc_cma},			{"CMC", proc_cmc},	{"STC", proc_stc},
 	{"JMP", proc_jmp},			{"JNZ", proc_jnz},	{"JZ", proc_jz},
-	{"JNC", proc_jnc},			{"JC", proc_jc},		{"JPO", proc_jpo},
-	{"JPE", proc_jpe},			{"JP", proc_jp},		{"JM", proc_jm},
+	{"JNC", proc_jnc},			{"JC", proc_jc},	{"JPO", proc_jpo},
+	{"JPE", proc_jpe},			{"JP", proc_jp},	{"JM", proc_jm},
 	{"CALL", proc_call},			{"CNZ", proc_cnz},	{"CZ", proc_cz},
-	{"CNC", proc_cnc},			{"CC", proc_cc},		{"CPO", proc_cpo},
-	{"CPE", proc_cpe},			{"CP", proc_cp},		{"CM", proc_cm},
+	{"CNC", proc_cnc},			{"CC", proc_cc},	{"CPO", proc_cpo},
+	{"CPE", proc_cpe},			{"CP", proc_cp},	{"CM", proc_cm},
 	{"RET", proc_ret},			{"RNZ", proc_rnz},	{"RZ", proc_rz},
-	{"RNC", proc_rnc},			{"RC", proc_rc},		{"RPO", proc_rpo},
-	{"RPE", proc_rpe},			{"RP", proc_rp},		{"RM", proc_rm},
+	{"RNC", proc_rnc},			{"RC", proc_rc},	{"RPO", proc_rpo},
+	{"RPE", proc_rpe},			{"RP", proc_rp},	{"RM", proc_rm},
 	{"RST", proc_rst},			{"PCHL", proc_pchl},	{"PUSH", proc_push},
 	{"POP", proc_pop},			{"XTHL", proc_xthl},	{"SPHL", proc_sphl},
-	{"IN", proc_in},				{"OUT", proc_out},	{"EI", proc_ei},
-	{"DI", proc_di},				{"HLT", proc_hlt},	{"NOP", proc_nop},
+	{"IN", proc_in},			{"OUT", proc_out},	{"EI", proc_ei},
+	{"DI", proc_di},			{"HLT", proc_hlt},	{"NOP", proc_nop},
 	{0, NULL}
 };
 
 
 /*	*************************************************************************
+ *	                                VARIABLES
+ *	************************************************************************* */
+
+/*	Private variables.
+ *	****************** */
+
+static uint8_t	inst_cyc[2];
+
+
+/*	*************************************************************************
  *	                           FUNCTIONS DEFINITION
  *	************************************************************************* */
+
+
+/*	*************************************************************************
+ *	Function name:	opcode_get_inst_cyc
+ *	Description:	Get current Instruction number of Cycles.
+ *	Author(s):		Claude Sylvain
+ *	Created:		26 May 2013
+ *	Last modified:
+ *	*
+ *	Parameters:		uint8_t inst_cyc_p[]:
+ *			- Pointer to an array that will be filled with
+ *			current instruction number of cycles.
+ *			- Size of the array must be 2.
+ *
+ *	Returns:			void
+ *	Globals:
+ *	Notes:
+ *	************************************************************************* */
+
+void opcode_get_inst_cyc(uint8_t inst_cyc_p[])
+{
+	memcpy(inst_cyc_p, inst_cyc, sizeof (inst_cyc));
+}
 
 
 /*	*************************************************************************
@@ -221,14 +255,14 @@ const keyword_t	OpCodes[] =
  *	Created:			2007
  *	Last modified:	27 December 2011
  *
- *	Parameters:		char *text:
- *							...
+ *	Parameters:		char *text: 
+ *				...
  *
- *						unsigned char ar:
- *							Allowed 16-bit Registers (See "PR16_AR_x" defines).
+ *				unsigned char ar:
+ *				Allowed 16-bit Registers (See "PR16_AR_x" defines).
  *
  *	Returns:			char *:
- *							...
+ *				...
  *
  *	Globals:
  *	Notes:
@@ -241,9 +275,9 @@ static char *parse_reg16bits(char *text, unsigned char ar)
 	char	buf[PARSE_REG16BITS_BUF_SIZE];
 	char	buf_ori[PARSE_REG16BITS_BUF_SIZE];	/*	Buffer for original text. */
 
-	int	i						= 0;
-	int	text_len				= 0;
-	char	*p_text				= text;
+	int	i		= 0;
+	int	text_len	= 0;
+	char	*p_text		= text;
 	int	reg_not_allowed	= 0;
 
 
@@ -361,6 +395,50 @@ static char *parse_reg16bits(char *text, unsigned char ar)
 		msg_error_s("Bad 16-bit register!", EC_B16BR, buf_ori);
 
 	return (text);
+}
+
+
+/*	*************************************************************************
+ *	Function name:	is_str_reg
+ *	Description:	Tell if "text" hold a Register name.
+ *	Author(s):		Claude Sylvain
+ *	Created:			26 May 2013
+ *	Last modified:
+ *
+ *	Parameters:		char *text:
+ *							- Point to somewhere in a string that possibly
+ *							  hold a register name.
+ *
+ *	Returns:			char:
+ *							0:	No register name found.
+ *							1:	A register name was found.
+ *
+ *	Globals:			None.
+ *	Notes:
+ *	************************************************************************* */
+
+static char is_str_reg(char *text)
+{
+	char	rv	= 1;
+	int	c	= toupper((int) *text);
+
+	switch (c)
+  	{
+		case 'A':
+		case 'B':
+		case 'C':
+		case 'D':
+		case 'E':
+		case 'H':
+		case 'L':
+			break;
+
+		default:
+			rv	= 0;		/*	Not a register name. */
+			break;
+	}
+
+	return (rv);
 }
 
 
@@ -508,7 +586,7 @@ static char *SourceReg(char *text)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -529,6 +607,8 @@ int proc_nop(char *label, char *equation)
 
 	data_size	= 1;
 	b1				= 0;
+	inst_cyc[0]	= 4;
+	inst_cyc[1]	= 4;
 
 	return (TEXT);
 }
@@ -539,7 +619,7 @@ int proc_nop(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -568,6 +648,8 @@ int proc_in(char *label, char *equation)
 
 	b2				= tmp & 0xFF;
 	data_size	= 2;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -578,7 +660,7 @@ int proc_in(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -607,6 +689,8 @@ int proc_out(char *label, char *equation)
 
 	b2				= tmp & 0xFF;
 	data_size	= 2;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -617,7 +701,7 @@ int proc_out(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -647,6 +731,8 @@ int proc_rst(char *label, char *equation)
 	tmp			= tmp & 0x7;
 	b1				|= tmp << 3;
 	data_size	= 1;
+	inst_cyc[0]	= 11;
+	inst_cyc[1]	= 11;
 
 	return (TEXT);
 }
@@ -657,7 +743,7 @@ int proc_rst(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -674,18 +760,53 @@ int proc_rst(char *label, char *equation)
 
 static int proc_mov(char *label, char *equation)
 {
+	char	src_is_reg;
+	char	dst_is_reg;
+	char	rn_dst;					/*	Register Name, Destination. */
+	char	rn_src;					/*	Register Name, Source. */
+
 	process_label(label);		/*	Process Label. */
 
 	b1 = 0x040;
 
-	/* proc dest reg */
-	equation = DestReg(equation);
+	/*	Proc dest reg.
+	 *	-------------- */
+	dst_is_reg	= is_str_reg(equation);
+	rn_dst		= (char) toupper(*equation);
+	equation		= DestReg(equation);
 
-	/* proc source reg */
-	equation = AdvancePastSpace(AdvancePast(equation, ','));
-	equation = SourceReg(equation);
+	/*	Proc source reg.
+	 *	---------------- */
+	equation		= AdvancePastSpace(AdvancePast(equation, ','));
+	src_is_reg	= is_str_reg(equation);
+	rn_src		= (char) toupper(*equation);
+	equation		= SourceReg(equation);
 
 	data_size = 1;
+
+	/*	If instruction use register for both destination and source...
+	 *	-------------------------------------------------------------- */
+	if ((dst_is_reg != 0) && (src_is_reg != 0))
+	{
+		inst_cyc[0]	= 5;
+		inst_cyc[1]	= 5;
+	}
+	/*	Instruction use "M" for destination or source.
+	 *	---------------------------------------------- */
+	else
+	{
+		inst_cyc[0]	= 7;
+		inst_cyc[1]	= 7;
+	}
+
+	/*	Check for 'M' register used both as destination and source.
+	 *	----------------------------------------------------------- */
+	if ((rn_dst == 'M') && (rn_src == 'M'))
+	{
+		msg_error(	"'M' can't be used as both destination and source!",
+			  			EC_MRCBUBDS);
+	}
+
 	return (TEXT);
 }
 
@@ -695,7 +816,7 @@ static int proc_mov(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -712,24 +833,41 @@ static int proc_mov(char *label, char *equation)
 
 static int proc_mvi(char *label, char *equation)
 {
-	int		tmp;
+char	dst_is_reg;
+int	tmp;
 
-	process_label(label);				/*	Process Label. */
+	process_label(label);	/*	Process Label. */
 
-	b1			= 0x06;
+	b1 = 0x06;
 
 	/* Process destination register.
 	 *	Notes: This can modify "b1".
-	 *	*/
-	equation = DestReg(equation);
+	 *	----------------------------- */
+	dst_is_reg = is_str_reg(equation);
+	equation   = DestReg(equation);
 
 	equation = AdvancePast(equation, ',');
-	tmp		= exp_parser(equation);
+	tmp	 = exp_parser(equation);
 
 	check_oor(tmp, 0xFF);		/*	Check Operand Over Range. */
 
-	b2				= tmp & 0xFF;
-	data_size	= 2;
+	b2 = tmp & 0xFF;
+	data_size = 2;
+
+	/*	If instruction use register for destination...
+	 *	---------------------------------------------- */
+	if (dst_is_reg != 0)
+	{
+		inst_cyc[0] = 7;
+		inst_cyc[1] = 7;
+	}
+	/*	Instruction use "M" for destination.
+	 *	------------------------------------ */
+	else
+	{
+		inst_cyc[0] = 10;
+		inst_cyc[1] = 10;
+	}
 
 	return (TEXT);
 }
@@ -740,7 +878,7 @@ static int proc_mvi(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	24 December 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -774,9 +912,11 @@ static int proc_lxi(char *label, char *equation)
 
 	check_oor(tmp, 0xFFFF);		/*	Check Operand Over Range. */
 
-	b2				= tmp & 0xFF;
-	b3				= (tmp >> 8) & 0xFF;
+	b2		= tmp & 0xFF;
+	b3		= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -787,7 +927,7 @@ static int proc_lxi(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -817,6 +957,8 @@ static int proc_lda(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 13;
+	inst_cyc[1]	= 13;
 
 	return (TEXT);
 }
@@ -827,7 +969,7 @@ static int proc_lda(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -857,6 +999,8 @@ static int proc_sta(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 13;
+	inst_cyc[1]	= 13;
 
 	return (TEXT);
 }
@@ -867,7 +1011,7 @@ static int proc_sta(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -897,6 +1041,8 @@ static int proc_lhld(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 16;
+	inst_cyc[1]	= 16;
 
 	return (TEXT);
 }
@@ -907,7 +1053,7 @@ static int proc_lhld(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -937,6 +1083,8 @@ static int proc_shld(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 16;
+	inst_cyc[1]	= 16;
 
 	return (TEXT);
 }
@@ -945,18 +1093,18 @@ static int proc_shld(char *label, char *equation)
 /*	*************************************************************************
  *	Function name:	proc_ldax
  *	Description:
- *	Author(s):		Jay Cotton, Claude Sylvain
- *	Created:			2007
- *	Last modified:	15 January 2011
+ *	Author(s):	Jay Cotton, Claude Sylvain
+ *	Created:	2007
+ *	Last modified:	26 May 2013
  *
- *	Parameters:		char *label:
- *							...
+ *	Parameters:	char *label:
+ *			...
  *
- *						char *equation:
- *							...
+ *			char *equation:
+ *			...
  *
- *	Returns:			int:
- *							...
+ *	Returns:	int:
+ *			...
  *
  *	Globals:
  *	Notes:
@@ -973,6 +1121,8 @@ static int proc_ldax(char *label, char *equation)
 	parse_reg16bits(equation, PR16_AR_BC | PR16_AR_DE);
 
 	data_size	= 1;		/*	Now the value. */
+	inst_cyc[0]	= 7;
+	inst_cyc[1]	= 7;
 
 	return (TEXT);
 }
@@ -983,7 +1133,7 @@ static int proc_ldax(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	15 January 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1008,7 +1158,9 @@ static int proc_stax(char *label, char *equation)
 	 * */
 	parse_reg16bits(equation, PR16_AR_BC | PR16_AR_DE);
 
-	data_size = 1;		/* Now the value. */
+	data_size	= 1;		/* Now the value. */
+	inst_cyc[0]	= 7;
+	inst_cyc[1]	= 7;
 
 	return (TEXT);
 }
@@ -1019,7 +1171,7 @@ static int proc_stax(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1040,6 +1192,8 @@ static int proc_xchg(char *label, char *equation)
 
 	b1				= 0xEB;
 	data_size	= 1;
+	inst_cyc[0]	= 4;
+	inst_cyc[1]	= 4;
 
 	return (TEXT);
 }
@@ -1050,7 +1204,7 @@ static int proc_xchg(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1067,11 +1221,31 @@ static int proc_xchg(char *label, char *equation)
 
 static int proc_add(char *label, char *equation)
 {
+	char	src_is_reg;
+
 	process_label(label);		/*	Process Label. */
 
 	b1				= 0x80;
+
+	src_is_reg	= is_str_reg(equation);
 	SourceReg(equation);
+
 	data_size	= 1;
+
+	/*	If instruction use register for source...
+	 *	----------------------------------------- */
+	if (src_is_reg != 0)
+	{
+		inst_cyc[0]	= 4;
+		inst_cyc[1]	= 4;
+	}
+	/*	Instruction use "M" for source.
+	 *	------------------------------- */
+	else
+	{
+		inst_cyc[0]	= 7;
+		inst_cyc[1]	= 7;
+	}
 
 	return (TEXT);
 }
@@ -1082,7 +1256,7 @@ static int proc_add(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1110,6 +1284,8 @@ static int proc_adi(char *label, char *equation)
 	b1				= 0xC6;
 	b2				= tmp & 0xFF;
 	data_size	= 2;
+	inst_cyc[0]	= 7;
+	inst_cyc[1]	= 7;
 
 	return (TEXT);
 }
@@ -1120,7 +1296,7 @@ static int proc_adi(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1137,11 +1313,31 @@ static int proc_adi(char *label, char *equation)
 
 static int proc_adc(char *label, char *equation)
 {
+	char	src_is_reg;
+
 	process_label(label);		/*	Process Label. */
 
 	b1				= 0x88;
+
+	src_is_reg	= is_str_reg(equation);
 	SourceReg(equation);
+
 	data_size	= 1;
+
+	/*	If instruction use register for source...
+	 *	----------------------------------------- */
+	if (src_is_reg != 0)
+	{
+		inst_cyc[0]	= 4;
+		inst_cyc[1]	= 4;
+	}
+	/*	Instruction use "M" for source.
+	 *	------------------------------- */
+	else
+	{
+		inst_cyc[0]	= 7;
+		inst_cyc[1]	= 7;
+	}
 
 	return (TEXT);
 }
@@ -1152,7 +1348,7 @@ static int proc_adc(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1180,6 +1376,8 @@ static int proc_aci(char *label, char *equation)
 	b1 			= 0xCE;
 	b2				= tmp & 0xFF;
 	data_size	= 2;
+	inst_cyc[0]	= 7;
+	inst_cyc[1]	= 7;
 
 	return (TEXT);
 }
@@ -1190,7 +1388,7 @@ static int proc_aci(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1207,11 +1405,31 @@ static int proc_aci(char *label, char *equation)
 
 static int proc_sub(char *label, char *equation)
 {
+	char	src_is_reg;
+
 	process_label(label);		/*	Process Label. */
 
 	b1				= 0x90;
+
+	src_is_reg	= is_str_reg(equation);
 	SourceReg(equation);
+
 	data_size	= 1;
+
+	/*	If instruction use register for source...
+	 *	----------------------------------------- */
+	if (src_is_reg != 0)
+	{
+		inst_cyc[0]	= 4;
+		inst_cyc[1]	= 4;
+	}
+	/*	Instruction use "M" for source.
+	 *	------------------------------- */
+	else
+	{
+		inst_cyc[0]	= 7;
+		inst_cyc[1]	= 7;
+	}
 
 	return (TEXT);
 }
@@ -1222,7 +1440,7 @@ static int proc_sub(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1250,6 +1468,8 @@ static int proc_sui(char *label, char *equation)
 	b1				= 0xD6;
 	b2				= tmp & 0xFF;
 	data_size	= 2;
+	inst_cyc[0]	= 7;
+	inst_cyc[1]	= 7;
 
 	return (TEXT);
 }
@@ -1260,7 +1480,7 @@ static int proc_sui(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1277,11 +1497,31 @@ static int proc_sui(char *label, char *equation)
 
 static int proc_sbb(char *label, char *equation)
 {
+	char	src_is_reg;
+
 	process_label(label);		/*	Process Label. */
 
 	b1				= 0x98;
+
+	src_is_reg	= is_str_reg(equation);
 	SourceReg(equation);
+
 	data_size	= 1;
+
+	/*	If instruction use register for source...
+	 *	----------------------------------------- */
+	if (src_is_reg != 0)
+	{
+		inst_cyc[0]	= 4;
+		inst_cyc[1]	= 4;
+	}
+	/*	Instruction use "M" for source.
+	 *	------------------------------- */
+	else
+	{
+		inst_cyc[0]	= 7;
+		inst_cyc[1]	= 7;
+	}
 
 	return (TEXT);
 }
@@ -1292,7 +1532,7 @@ static int proc_sbb(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1320,6 +1560,8 @@ static int proc_sbi(char *label, char *equation)
 	b1				= 0xDE;
 	b2				= tmp & 0xFF;
 	data_size	= 2;
+	inst_cyc[0]	= 7;
+	inst_cyc[1]	= 7;
 
 	return (TEXT);
 }
@@ -1330,7 +1572,7 @@ static int proc_sbi(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1347,11 +1589,31 @@ static int proc_sbi(char *label, char *equation)
 
 static int proc_inr(char *label, char *equation)
 {
+	char	dst_is_reg;
+
 	process_label(label);		/*	Process Label. */
 
 	b1				= 0x04;
+
+	dst_is_reg	= is_str_reg(equation);
 	DestReg(equation);
+
 	data_size	= 1;
+
+	/*	If instruction use register for destination...
+	 *	---------------------------------------------- */
+	if (dst_is_reg != 0)
+	{
+		inst_cyc[0]	= 5;
+		inst_cyc[1]	= 5;
+	}
+	/*	Instruction use "M" for destination.
+	 *	------------------------------------ */
+	else
+	{
+		inst_cyc[0]	= 10;
+		inst_cyc[1]	= 10;
+	}
 
 	return (TEXT);
 }
@@ -1362,7 +1624,7 @@ static int proc_inr(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1379,11 +1641,31 @@ static int proc_inr(char *label, char *equation)
 
 static int proc_dcr(char *label, char *equation)
 {
+	char	dst_is_reg;
+
 	process_label(label);		/*	Process Label. */
 
 	b1				= 0x05;
+
+	dst_is_reg	= is_str_reg(equation);
 	DestReg(equation);
+
 	data_size	= 1;
+
+	/*	If instruction use register for destination...
+	 *	---------------------------------------------- */
+	if (dst_is_reg != 0)
+	{
+		inst_cyc[0]	= 5;
+		inst_cyc[1]	= 5;
+	}
+	/*	Instruction use "M" for destination.
+	 *	------------------------------------ */
+	else
+	{
+		inst_cyc[0]	= 10;
+		inst_cyc[1]	= 10;
+	}
 
 	return (TEXT);
 }
@@ -1394,7 +1676,7 @@ static int proc_dcr(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	15 January 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1420,6 +1702,8 @@ static int proc_inx(char *label, char *equation)
 	parse_reg16bits(equation, PR16_AR_BC | PR16_AR_DE | PR16_AR_HL | PR16_AR_SP);
 
 	data_size	= 1;			/* Now the value. */
+	inst_cyc[0]	= 5;
+	inst_cyc[1]	= 5;
 
 	return (TEXT);
 }
@@ -1430,7 +1714,7 @@ static int proc_inx(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	15 January 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1456,6 +1740,8 @@ static int proc_dcx(char *label, char *equation)
 	parse_reg16bits(equation, PR16_AR_BC | PR16_AR_DE | PR16_AR_HL | PR16_AR_SP);
 
 	data_size	= 1;			/* Now the value. */
+	inst_cyc[0]	= 5;
+	inst_cyc[1]	= 5;
 
 	return (TEXT);
 }
@@ -1466,7 +1752,7 @@ static int proc_dcx(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	15 January 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1492,6 +1778,8 @@ static int proc_dad(char *label, char *equation)
 	parse_reg16bits(equation, PR16_AR_BC | PR16_AR_DE | PR16_AR_HL | PR16_AR_SP);
 
 	data_size	= 1;			/* Now the value. */
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -1502,7 +1790,7 @@ static int proc_dad(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1523,6 +1811,8 @@ static int proc_daa(char *label, char *equation)
 
 	b1				= 0x27;
 	data_size	= 1;
+	inst_cyc[0]	= 4;
+	inst_cyc[1]	= 4;
 
 	return (TEXT);
 }
@@ -1533,7 +1823,7 @@ static int proc_daa(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1550,11 +1840,31 @@ static int proc_daa(char *label, char *equation)
 
 static int proc_ana(char *label, char *equation)
 {
+	char	src_is_reg;
+
 	process_label(label);		/*	Process Label. */
 
 	b1				= 0xA0;
+
+	src_is_reg	= is_str_reg(equation);
 	SourceReg(equation);
+
 	data_size	= 1;
+
+	/*	If instruction use register for source...
+	 *	----------------------------------------- */
+	if (src_is_reg != 0)
+	{
+		inst_cyc[0]	= 4;
+		inst_cyc[1]	= 4;
+	}
+	/*	Instruction use "M" for source.
+	 *	------------------------------- */
+	else
+	{
+		inst_cyc[0]	= 7;
+		inst_cyc[1]	= 7;
+	}
 
 	return (TEXT);
 }
@@ -1565,7 +1875,7 @@ static int proc_ana(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1593,6 +1903,8 @@ static int proc_ani(char *label, char *equation)
 	b1				= 0xE6;
 	b2				= tmp & 0xFF;
 	data_size	= 2;
+	inst_cyc[0]	= 7;
+	inst_cyc[1]	= 7;
 
 	return (TEXT);
 }
@@ -1603,7 +1915,7 @@ static int proc_ani(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1620,11 +1932,31 @@ static int proc_ani(char *label, char *equation)
 
 static int proc_ora(char *label, char *equation)
 {
+	char	src_is_reg;
+
 	process_label(label);		/*	Process Label. */
 
 	b1				= 0xB0;
+
+	src_is_reg	= is_str_reg(equation);
 	SourceReg(equation);
+
 	data_size	= 1;
+
+	/*	If instruction use register for source...
+	 *	----------------------------------------- */
+	if (src_is_reg != 0)
+	{
+		inst_cyc[0]	= 4;
+		inst_cyc[1]	= 4;
+	}
+	/*	Instruction use "M" for source.
+	 *	------------------------------- */
+	else
+	{
+		inst_cyc[0]	= 7;
+		inst_cyc[1]	= 7;
+	}
 
 	return (TEXT);
 }
@@ -1635,7 +1967,7 @@ static int proc_ora(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1663,6 +1995,8 @@ static int proc_ori(char *label, char *equation)
 	b1				= 0xF6;
 	b2				= tmp & 0xFF;
 	data_size	= 2;
+	inst_cyc[0]	= 7;
+	inst_cyc[1]	= 7;
 
 	return (TEXT);
 }
@@ -1673,7 +2007,7 @@ static int proc_ori(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1690,11 +2024,31 @@ static int proc_ori(char *label, char *equation)
 
 static int proc_xra(char *label, char *equation)
 {
+	char	src_is_reg;
+
 	process_label(label);		/*	Process Label. */
 
 	b1				= 0xA8;
+
+	src_is_reg	= is_str_reg(equation);
 	SourceReg(equation);
+
 	data_size	= 1;
+
+	/*	If instruction use register for source...
+	 *	----------------------------------------- */
+	if (src_is_reg != 0)
+	{
+		inst_cyc[0]	= 4;
+		inst_cyc[1]	= 4;
+	}
+	/*	Instruction use "M" for source.
+	 *	------------------------------- */
+	else
+	{
+		inst_cyc[0]	= 7;
+		inst_cyc[1]	= 7;
+	}
 
 	return (TEXT);
 }
@@ -1705,7 +2059,7 @@ static int proc_xra(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1733,6 +2087,8 @@ static int proc_xri(char *label, char *equation)
 	b1				= 0xEE;
 	b2				= tmp & 0xFF;
 	data_size	= 2;
+	inst_cyc[0]	= 7;
+	inst_cyc[1]	= 7;
 
 	return (TEXT);
 }
@@ -1743,7 +2099,7 @@ static int proc_xri(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1760,11 +2116,31 @@ static int proc_xri(char *label, char *equation)
 
 static int proc_cmp(char *label, char *equation)
 {
+	char	src_is_reg;
+
 	process_label(label);		/*	Process Label. */
 
 	b1				= 0xB8;
+
+	src_is_reg	= is_str_reg(equation);
 	SourceReg(equation);
+
 	data_size	= 1;
+
+	/*	If instruction use register for source...
+	 *	----------------------------------------- */
+	if (src_is_reg != 0)
+	{
+		inst_cyc[0]	= 4;
+		inst_cyc[1]	= 4;
+	}
+	/*	Instruction use "M" for source.
+	 *	------------------------------- */
+	else
+	{
+		inst_cyc[0]	= 7;
+		inst_cyc[1]	= 7;
+	}
 
 	return (TEXT);
 }
@@ -1775,7 +2151,7 @@ static int proc_cmp(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1803,6 +2179,8 @@ static int proc_cpi(char *label, char *equation)
 	b1				= 0xFE;
 	b2				= tmp & 0xFF;
 	data_size	= 2;
+	inst_cyc[0]	= 7;
+	inst_cyc[1]	= 7;
 
 	return (TEXT);
 }
@@ -1813,7 +2191,7 @@ static int proc_cpi(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1834,6 +2212,8 @@ static int proc_rlc(char *label, char *equation)
 
 	b1				= 0x07;
 	data_size	= 1;
+	inst_cyc[0]	= 4;
+	inst_cyc[1]	= 4;
 
 	return (TEXT);
 }
@@ -1844,7 +2224,7 @@ static int proc_rlc(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1865,6 +2245,8 @@ static int proc_rrc(char *label, char *equation)
 
 	b1				= 0x0F;
 	data_size	= 1;
+	inst_cyc[0]	= 4;
+	inst_cyc[1]	= 4;
 
 	return (TEXT);
 }
@@ -1875,7 +2257,7 @@ static int proc_rrc(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1896,6 +2278,8 @@ static int proc_ral(char *label, char *equation)
 
 	b1				= 0x17;
 	data_size	= 1;
+	inst_cyc[0]	= 4;
+	inst_cyc[1]	= 4;
 
 	return (TEXT);
 }
@@ -1906,7 +2290,7 @@ static int proc_ral(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1927,6 +2311,8 @@ static int proc_rar(char *label, char *equation)
 
 	b1				= 0x1F;
 	data_size	= 1;
+	inst_cyc[0]	= 4;
+	inst_cyc[1]	= 4;
 
 	return (TEXT);
 }
@@ -1937,7 +2323,7 @@ static int proc_rar(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1958,6 +2344,8 @@ static int proc_cma(char *label, char *equation)
 
 	b1				= 0x2F;
 	data_size	= 1;
+	inst_cyc[0]	= 4;
+	inst_cyc[1]	= 4;
 
 	return (TEXT);
 }
@@ -1968,7 +2356,7 @@ static int proc_cma(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -1989,6 +2377,8 @@ static int proc_cmc(char *label, char *equation)
 
 	b1				= 0x3F;
 	data_size	= 1;
+	inst_cyc[0]	= 4;
+	inst_cyc[1]	= 4;
 
 	return (TEXT);
 }
@@ -1999,7 +2389,7 @@ static int proc_cmc(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2020,6 +2410,8 @@ static int proc_stc(char *label, char *equation)
 
 	b1				= 0x37;
 	data_size	= 1;
+	inst_cyc[0]	= 4;
+	inst_cyc[1]	= 4;
 
 	return (TEXT);
 }
@@ -2030,7 +2422,7 @@ static int proc_stc(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2060,6 +2452,8 @@ static int proc_jmp(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -2070,7 +2464,7 @@ static int proc_jmp(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2100,6 +2494,8 @@ static int proc_jnz(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -2110,7 +2506,7 @@ static int proc_jnz(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2140,6 +2536,8 @@ static int proc_jz(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -2150,7 +2548,7 @@ static int proc_jz(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2180,6 +2578,8 @@ static int proc_jnc(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -2190,7 +2590,7 @@ static int proc_jnc(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2220,6 +2620,8 @@ static int proc_jc(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -2230,7 +2632,7 @@ static int proc_jc(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2260,6 +2662,8 @@ static int proc_jpo(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -2270,7 +2674,7 @@ static int proc_jpo(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2300,6 +2704,8 @@ static int proc_jpe(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -2310,7 +2716,7 @@ static int proc_jpe(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2340,6 +2746,8 @@ static int proc_jp(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -2350,7 +2758,7 @@ static int proc_jp(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2380,6 +2788,8 @@ static int proc_jm(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -2390,7 +2800,7 @@ static int proc_jm(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2420,6 +2830,8 @@ static int proc_call(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 17;
+	inst_cyc[1]	= 17;
 
 	return (TEXT);
 }
@@ -2430,7 +2842,7 @@ static int proc_call(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2460,6 +2872,8 @@ static int proc_cnz(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 11;
+	inst_cyc[1]	= 17;
 
 	return (TEXT);
 }
@@ -2470,7 +2884,7 @@ static int proc_cnz(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2500,6 +2914,8 @@ static int proc_cz(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 11;
+	inst_cyc[1]	= 17;
 
 	return (TEXT);
 }
@@ -2510,7 +2926,7 @@ static int proc_cz(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2540,6 +2956,8 @@ static int proc_cnc(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 11;
+	inst_cyc[1]	= 17;
 
 	return (TEXT);
 }
@@ -2550,7 +2968,7 @@ static int proc_cnc(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2580,6 +2998,8 @@ static int proc_cc(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 11;
+	inst_cyc[1]	= 17;
 
 	return (TEXT);
 }
@@ -2590,7 +3010,7 @@ static int proc_cc(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2620,6 +3040,8 @@ static int proc_cpo(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 11;
+	inst_cyc[1]	= 17;
 
 	return (TEXT);
 }
@@ -2630,7 +3052,7 @@ static int proc_cpo(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2660,6 +3082,8 @@ static int proc_cpe(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 11;
+	inst_cyc[1]	= 17;
 
 	return (TEXT);
 }
@@ -2670,7 +3094,7 @@ static int proc_cpe(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2700,6 +3124,8 @@ static int proc_cp(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 11;
+	inst_cyc[1]	= 17;
 
 	return (TEXT);
 }
@@ -2710,7 +3136,7 @@ static int proc_cp(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	26 November 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2740,6 +3166,8 @@ static int proc_cm(char *label, char *equation)
 	b2				= tmp & 0xFF;
 	b3				= (tmp >> 8) & 0xFF;
 	data_size	= 3;
+	inst_cyc[0]	= 11;
+	inst_cyc[1]	= 17;
 
 	return (TEXT);
 }
@@ -2750,7 +3178,7 @@ static int proc_cm(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2771,6 +3199,8 @@ static int proc_ret(char *label, char *equation)
 
 	b1				= 0xC9;
 	data_size	= 1;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	return (TEXT);
 }
@@ -2781,7 +3211,7 @@ static int proc_ret(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2802,6 +3232,8 @@ static int proc_rnz(char *label, char *equation)
 
 	b1				= 0xC0;
 	data_size	= 1;
+	inst_cyc[0]	= 5;
+	inst_cyc[1]	= 11;
 
 	return (TEXT);
 }
@@ -2812,7 +3244,7 @@ static int proc_rnz(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2833,6 +3265,8 @@ static int proc_rz(char *label, char *equation)
 
 	b1				= 0xC0 + (1 << 3);
 	data_size	= 1;
+	inst_cyc[0]	= 5;
+	inst_cyc[1]	= 11;
 
 	return (TEXT);
 }
@@ -2843,7 +3277,7 @@ static int proc_rz(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2864,6 +3298,8 @@ static int proc_rnc(char *label, char *equation)
 
 	b1				= 0xC0 + (2 << 3);
 	data_size	= 1;
+	inst_cyc[0]	= 5;
+	inst_cyc[1]	= 11;
 
 	return (TEXT);
 }
@@ -2874,7 +3310,7 @@ static int proc_rnc(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2895,6 +3331,8 @@ static int proc_rc(char *label, char *equation)
 
 	b1				= 0xC0 + (3 << 3);
 	data_size	= 1;
+	inst_cyc[0]	= 5;
+	inst_cyc[1]	= 11;
 
 	return (TEXT);
 }
@@ -2905,7 +3343,7 @@ static int proc_rc(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2926,6 +3364,8 @@ static int proc_rpo(char *label, char *equation)
 
 	b1				= 0xC0 + (4 << 3);
 	data_size	= 1;
+	inst_cyc[0]	= 5;
+	inst_cyc[1]	= 11;
 
 	return (TEXT);
 }
@@ -2936,7 +3376,7 @@ static int proc_rpo(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2957,6 +3397,8 @@ static int proc_rpe(char *label, char *equation)
 
 	b1				= 0xC0 + (5 << 3);
 	data_size	= 1;
+	inst_cyc[0]	= 5;
+	inst_cyc[1]	= 11;
 
 	return (TEXT);
 }
@@ -2967,7 +3409,7 @@ static int proc_rpe(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -2988,6 +3430,8 @@ static int proc_rp(char *label, char *equation)
 
 	b1				= 0xC0 + (6 << 3);
 	data_size	= 1;
+	inst_cyc[0]	= 5;
+	inst_cyc[1]	= 11;
 
 	return (TEXT);
 }
@@ -2998,7 +3442,7 @@ static int proc_rp(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -3019,6 +3463,8 @@ static int proc_rm(char *label, char *equation)
 
 	b1				= 0xC0 + (7 << 3);
 	data_size	= 1;
+	inst_cyc[0]	= 5;
+	inst_cyc[1]	= 11;
 
 	return (TEXT);
 }
@@ -3029,7 +3475,7 @@ static int proc_rm(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -3050,6 +3496,8 @@ static int proc_pchl(char *label, char *equation)
 
 	b1				= 0xE9;
 	data_size	= 1;
+	inst_cyc[0]	= 5;
+	inst_cyc[1]	= 5;
 
 	return (TEXT);
 }
@@ -3060,7 +3508,7 @@ static int proc_pchl(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	15 January 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -3081,6 +3529,8 @@ static int proc_push(char *label, char *equation)
 
 	b1				= 0xC5;
 	data_size	= 1;
+	inst_cyc[0]	= 11;
+	inst_cyc[1]	= 11;
 
 	parse_reg16bits(
 		equation, PR16_AR_BC | PR16_AR_DE | PR16_AR_HL | PR16_AR_PSW);
@@ -3094,7 +3544,7 @@ static int proc_push(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	15 January 2011
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -3115,6 +3565,8 @@ static int proc_pop(char *label, char *equation)
 
 	b1				= 0xC1;
 	data_size	= 1;
+	inst_cyc[0]	= 10;
+	inst_cyc[1]	= 10;
 
 	parse_reg16bits(
 		equation, PR16_AR_BC | PR16_AR_DE | PR16_AR_HL | PR16_AR_PSW);
@@ -3128,7 +3580,7 @@ static int proc_pop(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -3149,6 +3601,8 @@ static int proc_xthl(char *label, char *equation)
 
 	b1				= 0xE3;
 	data_size	= 1;
+	inst_cyc[0]	= 18;
+	inst_cyc[1]	= 18;
 
 	return (TEXT);
 }
@@ -3159,7 +3613,7 @@ static int proc_xthl(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -3180,6 +3634,8 @@ static int proc_sphl(char *label, char *equation)
 
 	b1				= 0xF9;
 	data_size	= 1;
+	inst_cyc[0]	= 5;
+	inst_cyc[1]	= 5;
 
 	return (TEXT);
 }
@@ -3190,7 +3646,7 @@ static int proc_sphl(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -3211,6 +3667,8 @@ static int proc_ei(char *label, char *equation)
 
 	b1				= 0xFB;
 	data_size	= 1;
+	inst_cyc[0]	= 4;
+	inst_cyc[1]	= 4;
 
 	return (TEXT);
 }
@@ -3221,7 +3679,7 @@ static int proc_ei(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -3242,6 +3700,8 @@ static int proc_di(char *label, char *equation)
 
 	b1				= 0xF3;
 	data_size	= 1;
+	inst_cyc[0]	= 4;
+	inst_cyc[1]	= 4;
 
 	return (TEXT);
 }
@@ -3252,7 +3712,7 @@ static int proc_di(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2010
+ *	Last modified:	26 May 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -3273,6 +3733,8 @@ static int proc_hlt(char *label, char *equation)
 
 	b1				= 0x76;
 	data_size	= 1;
+	inst_cyc[0]	= 7;
+	inst_cyc[1]	= 7;
 
 	return (TEXT);
 }

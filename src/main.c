@@ -4,7 +4,8 @@
  *	Copyright(c):	See below...
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	6 January 2012
+ *	Last modified:	28 June 2011
+ *	Last modified:  4/23/2017	
  *
  * Notes:
  *						- The assembler assumes that the left column is a label,
@@ -13,7 +14,7 @@
  *	************************************************************************* */
 
 /*
- * Copyright (c) <2007-2012> <jay.cotton@oracle.com>
+ * Copyright (c) <2007-2017> Jay Cotton <lbmgmusic@gmail.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -33,7 +34,6 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-
 
 /*	*************************************************************************
  *	                              INCLUDE FILES
@@ -56,7 +56,7 @@
 
 
 /*	*************************************************************************
- *											  CONSTANTS
+ *	CONSTANTS
  *	************************************************************************* */
 
 #define FN_BASE_SIZE					80
@@ -65,7 +65,7 @@
 
 
 /*	*************************************************************************
- *												 STRUCT
+ *	STRUCT
  *	************************************************************************* */
 
 /*	Structure that hold an "-I" Option.
@@ -78,7 +78,7 @@ struct option_i_t
 
 
 /*	*************************************************************************
- *												 CONST
+ *	CONST
  *	************************************************************************* */
 
 /*	Public const.
@@ -94,7 +94,7 @@ const char	*name_pgm	= "asm8080";		/*	Program Name. */
  *	---------------- */
 static const unsigned char	pgm_version_v	= 1;	/*	Version. */
 static const unsigned char	pgm_version_sv	= 0;	/*	Sub-Version. */
-static const unsigned char	pgm_version_rn	= 5;	/*	Revision Number. */
+static const unsigned char	pgm_version_rn	= 14;	/*	Revision Number. */
 
 
 /*	*************************************************************************
@@ -119,7 +119,7 @@ static void DumpBin(void);
 static void do_asm(void);
 static int print_symbols_type(	enum symbol_type_t symbol_type,
 	  										int symbol_field_size, int tab_length);
-static void PrintList(char *text);
+static void print_list(char *text);
 static void display_help(void);
 static int src_line_parser(char *text);
 static void asm_pass1(void);
@@ -192,6 +192,12 @@ static char	*hex_file	= NULL;		/*	Intel Hexadecimal File name. */
  *	*/	
 static struct	option_i_t	option_i	= {NULL, NULL};
 
+/*	Control if Instruction Number of Cycles have to be print.
+ *		0 = Do not print instruction number of cycles.
+ *		1 = Print instruction number of cycles.
+ *	*/
+static char	print_inc	= 0;
+
 
 /*	*************************************************************************
  *	                           FUNCTIONS DEFINITION
@@ -253,9 +259,17 @@ static void check_new_pc(int count)
 
 	/*	- Check if the new program counter is out of range, and
 	 *	  manage messages if necessary.
-	 *	------------------------------------------------------- */	 
+	 *	------------------------------------------------------- */	
+
+#if 0
 	if (((new_pc < 0) || (new_pc > 0x10000)) && (asm_pass == 1))
 		msg_error_d("Program counter over range!", EC_PCOR, target.pc);
+#else
+	if (((new_pc < 0) || (new_pc > 0x10000)) && (asm_pass == 1)){
+	target.addr = target.addr - 0xffff;
+	msg_warning("address wrapped at maxval",EC_PCOR);
+	}
+#endif
 }
 
 
@@ -354,9 +368,9 @@ static int update_pc(int count)
 
 int get_file_from_path(char *fn, char* fn_path, size_t fn_path_size)
 {
-	static struct option_i_t	*p_option_i_cur;
+static struct option_i_t	*p_option_i_cur;
 
-	int		rv			= -1;
+int		rv			= -1;
 
 	/*	- If one the the parameter is NULL or 0, we assume that caller
 	 *	  want us to initialize.
@@ -431,14 +445,14 @@ int get_file_from_path(char *fn, char* fn_path, size_t fn_path_size)
  *	************************************************************************* */
 
 static int print_symbols_type(	enum symbol_type_t symbol_type,
-	  										int symbol_field_size, int tab_length)
+ 	int symbol_field_size, int tab_length)
 {
-	int		symbols_num				= 0;
-	char		string_type[16];
-	SYMBOL	*local	= Symbols;
-	size_t	str_len;
-	int		tab_cnt;
-	int		i;
+int		symbols_num = 0;
+char		string_type[16];
+SYMBOL	*local	= Symbols;
+size_t	str_len;
+int		tab_cnt;
+int		i;
 
 
 	/*	Set Type String.
@@ -749,7 +763,7 @@ static void CloseFiles(void)
  *	Description:	Break down a source line.
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	29 December 2011
+ *	Last modified:	2015-10-18
  *
  *	Parameters:		char *text:
  *							...
@@ -765,13 +779,51 @@ static void CloseFiles(void)
 
 static int src_line_parser(char *text)
 {
-	char	keyword[16];
-	char	keyword_uc[sizeof (keyword)];	/*	OpCode in Upper Case. */
-	int	i					= 0;
-	int	msg_displayed	= 0;
-	char	equation[80];
-	char	label[LABEL_SIZE_MAX];
-	int	status	= LIST_ONLY;
+/*	"p_string" and "p_string_uc" size (the allocated memory).
+ *	*/
+#define SCR_LINE_PARSER_P_STRING_SIZE		SYMBOL_SIZE_MAX
+
+
+char	*p_string;
+char	*p_string_uc;							/*	String in Upper Case. */
+char	*p_equation;
+char	*p_label;
+
+int	i		= 0;
+int	msg_displayed	= 0;
+int	status		= LIST_ONLY;
+
+
+	/*	Allocate space for "Key Word".
+	 *	*/
+	p_string = (char *) malloc(SCR_LINE_PARSER_P_STRING_SIZE * sizeof (char));
+
+	/*	Allocate space for "Key Word, Upper Case".
+	 *	*/
+	p_string_uc = (char *) malloc(SCR_LINE_PARSER_P_STRING_SIZE * sizeof (char));
+
+	/*	Allocate space for "Equation".
+	 *	*/
+	p_equation = (char *) malloc(EQUATION_SIZE_MAX * sizeof (char));
+
+	/*	Allocate space for "Label".
+	 *	*/
+	p_label = (char *) malloc(LABEL_SIZE_MAX * sizeof (char));
+
+	/*	If unable to allocate space for some objects, abort operation.
+	 *	-------------------------------------------------------------- */
+	if (	(p_string == NULL) || (p_string_uc == NULL) || (p_equation == NULL) ||
+			(p_label == NULL))
+	{
+		msg_error("Memory allocation error!", EC_MAE);
+
+		free(p_string);
+		free(p_string_uc);
+		free(p_equation);
+		free(p_label);
+
+		return (status);
+	}
 
 	/*	If this is a comment, don't do anything.
 	 *	---------------------------------------- */	
@@ -805,10 +857,10 @@ static int src_line_parser(char *text)
   	{
 		keyword_t   *p_keyword;
 
-		memset(label, 0, sizeof (label));
-		memset(keyword, 0, sizeof (keyword));
-		memset(keyword_uc, 0, sizeof (keyword_uc));
-		memset(equation, 0, sizeof (equation));
+		memset(p_label, 0, LABEL_SIZE_MAX);
+		memset(p_string, 0, SCR_LINE_PARSER_P_STRING_SIZE);
+		memset(p_string_uc, 0, SCR_LINE_PARSER_P_STRING_SIZE);
+		memset(p_equation, 0, EQUATION_SIZE_MAX * sizeof (char));
 
 
 		/*	Grab the label/name, if any.
@@ -844,14 +896,14 @@ static int src_line_parser(char *text)
 
 			/*	TODO: Is this standard Intel assembler code?
 			 *	-------------------------------------------- */	
-			if (*text == '&')	label[i++] = *(text++);
-			if (*text == '%')	label[i++] = *(text++);
+			if (*text == '&')	p_label[i++] = *(text++);
+			if (*text == '%')	p_label[i++] = *(text++);
 
 			/*	- First label/name character can be '?' or '@'
 			 *	  special character.
 			 *	---------------------------------------------- */
 			if ((*text == '?') || (*text == '@'))
-				label[i++] = *(text++);
+				p_label[i++] = *(text++);
 
 			/*	Grab remaining of label/name characters.
 			 *	---------------------------------------- */	
@@ -859,9 +911,9 @@ static int src_line_parser(char *text)
 			{
 				if (islabelchar((int) *text) != 0)
 				{
-					if (i < (sizeof (label) - 3))
+					if (i < (LABEL_SIZE_MAX - 3))
 					{
-						label[i]	= *(text++);
+						p_label[i]	= *(text++);
 						i++;
 					}
 					else
@@ -875,7 +927,7 @@ static int src_line_parser(char *text)
 						{
 							msg_displayed	= 1;	/*	No more message. */
 
-							msg_warning_s("Label too long!", WC_LTL, label);
+							msg_warning_s("Label too long!", WC_LTL, p_label);
 						}
 					}
 				}
@@ -895,6 +947,11 @@ static int src_line_parser(char *text)
 						 *	-------------------------- */
 						if (*text == ':')
 							text++;
+						/* Some times labels have :: at the end
+						 * this may be important is certain situations....
+						 * for now, just eat the symbol and move along.
+						 * ---------------------------------------------*/
+						if (*text == ':') text++;
 
 						break;
 					}
@@ -919,7 +976,7 @@ static int src_line_parser(char *text)
 
 		/*	If nothing else than the label/name on the line...
 		 *	-------------------------------------------------- */	
-		if ((*text == '\0') || (*text == ';'))
+		if ((*text == '\0') || (*text == ';')&&(*(text-1)!=';'))
 		{
 			/*	- If code section is activated and there is no macro
 			 *	  definition processed, process label.
@@ -929,7 +986,7 @@ static int src_line_parser(char *text)
 			 *	  processing here.
 			 *	---------------------------------------------------------- */
 			if ((util_is_cs_enable() != 0) && (inside_macro == 0))
-				process_label(label);
+				process_label(p_label);
 
 			/*	TODO: Why "type" and "status" are not the same ???
 			 *	*/
@@ -937,6 +994,11 @@ static int src_line_parser(char *text)
 			/* Process comment statement in source stream.
 			 * */
 			type		= COMMENT;
+
+			free(p_string);
+			free(p_string_uc);
+			free(p_equation);
+			free(p_label);
 
 			return (LIST_ONLY);
 		}
@@ -950,10 +1012,11 @@ static int src_line_parser(char *text)
 
 		while ((isalnum((int) *text)) || (*text == '_'))
 		{
-			if (i < (sizeof (keyword) - 1))
+			if (i < (SCR_LINE_PARSER_P_STRING_SIZE - 1))
 			{
-				keyword[i]		= *text;
-				keyword_uc[i]	= toupper((int) *text);
+				p_string[i]		= *text;
+				p_string_uc[i]	= toupper((int) *text);
+
 				text++;
 				i++;
 			}
@@ -968,7 +1031,7 @@ static int src_line_parser(char *text)
 				{
 					msg_displayed	= 1;	/*	No more message. */
 
-					msg_error_s("Keyword too long!", EC_KTL, keyword);
+					msg_error_s("Keyword too long!", EC_KTL, p_string);
 				}
 			}
 		}
@@ -981,16 +1044,16 @@ static int src_line_parser(char *text)
 		/*	Copy third field to equation buffer.
 		 *	************************************	*/
 
-		if ((*text != '\0') && (*text != ';'))
+		if ((*text != '\0') || (*text != ';')&&(*(text-1)!=';'))
 		{
 			i					= 0;
 			msg_displayed	= 0;
 
-			while ((iscntrl((int) *text) == 0) && (*text != ';'))
+			while ((iscntrl((int) *text) == 0) && ((*text != ';')||(*(text-1)==';')))
 			{
-				if (i < (sizeof (equation) - 1))
+				if (i < ((EQUATION_SIZE_MAX * sizeof (char)) - 1))
 				{
-					equation[i]	= *(text++);
+					p_equation[i]	= *(text++);
 					i++;
 				}
 				else
@@ -1004,7 +1067,7 @@ static int src_line_parser(char *text)
 					{
 						msg_displayed	= 1;	/*	No more message. */
 
-						msg_error_s("equation too long!", EC_ETL, equation);
+						msg_error_s("Equation too long!", EC_ETL, p_equation);
 					}
 				}
 			}
@@ -1020,19 +1083,26 @@ static int src_line_parser(char *text)
 		{
 			/*	If keyword is found, call the associated function.
 			 *	-------------------------------------------------- */	
-			if (strcmp(p_keyword->Name, keyword_uc) == 0)
+			if (strcmp(p_keyword->Name, p_string_uc) == 0)
 		  	{
 				if (inside_macro == 0)
 				{
-					status	= p_keyword->fnc(label, equation);
+					status	= p_keyword->fnc(p_label, p_equation);
 					type		= status;
 
 					if (status == PROCESSED_END)
+					{
+						free(p_string);
+						free(p_string_uc);
+						free(p_equation);
+						free(p_label);
+
 						return (status);
+					}
 				}
-				else if (strcmp(keyword_uc, "ENDM") == 0)
+				else if (strcmp(p_string_uc, "ENDM") == 0)
 				{
-					status	= p_keyword->fnc(label, equation);
+					status	= p_keyword->fnc(p_label, p_equation);
 					type		= status;
 				}
 				else
@@ -1041,66 +1111,81 @@ static int src_line_parser(char *text)
 				break;
 			}
 		  	else
-			{
 				p_keyword++;
-			}
 		}
 
 		/*	If assembler directive was found and processed, exit.
 		 *	----------------------------------------------------- */	
 		if (p_keyword->Name != NULL)
-			return (status);
+		{
+			free(p_string);
+			free(p_string_uc);
+			free(p_equation);
+			free(p_label);
 
-		/*	- If code section is not active or inside macro definition
-		 *	  processing, do no search for opcodes and macros.
-		 *	  Just list.
-		 *	---------------------------------------------------------- */
+			return (status);
+		}
+
+		/* - If code section is not active or inside macro definition
+		 *  processing, do no search for opcodes and macros.
+		 *  Just list.
+		 * ---------------------------------------------------------- */
 		if ((util_is_cs_enable() == 0) || (inside_macro == 1))
 		{
 			type		= LIST_ONLY;
 			status	= LIST_ONLY;
+
+			free(p_string);
+			free(p_string_uc);
+			free(p_equation);
+			free(p_label);
+
 			return (status);
 		}
 
 
-		/*	- Lookup for opcodes, and call associated
-		 *	  function if necessary.
-		 *	***************************************** */
+		/* - Lookup for opcodes, and call associated
+		 *  function if necessary.
+		 * ***************************************** */
 
-		p_keyword	= (keyword_t *) OpCodes;
+		p_keyword = (keyword_t *) OpCodes;
 
 		while (p_keyword->Name)
 		{
-			/*	If keyword is found, call the associated function.
-			 *	-------------------------------------------------- */	
-			if (!strcmp(p_keyword->Name, keyword_uc))
+			/* If keyword is found, call the associated function.
+			 * -------------------------------------------------- */	
+			if (!strcmp(p_keyword->Name, p_string_uc))
 			{
-				status	= p_keyword->fnc(label, equation);
-				type		= status;
+				status	= p_keyword->fnc(p_label, p_equation);
+				type	= status;
 				break;
 			}
 			else
-			{
 				p_keyword++;
-			}
 		}
 
-		/*	If opcode was found and processed, exit.
-		 *	---------------------------------------- */	
+		/* If opcode was found and processed, exit.
+		 * ---------------------------------------- */	
 		if (p_keyword->Name != NULL)
+		{
+			free(p_string);
+			free(p_string_uc);
+			free(p_equation);
+			free(p_label);
 			return (status);
+		}
 
 
 		/*	Try with a macro.
 		 *	***************** */
 
-		/*	Remember actual File Level.
-		 *	This will serve us later to see if macro was found or not.
-		 *	*/
-		i	= file_level;
+		/* Remember actual File Level.
+		 * This will serve us later to see if macro was found or not.
+		 * */
+		i = file_level;
 
-		/*	Increment File Level, and check for overflow error.
-		 *	--------------------------------------------------- */
+		/* Increment File Level, and check for overflow error.
+		 * --------------------------------------------------- */
 		if (++file_level <= FILES_LEVEL_MAX)
 		{
 			int	file_openned	= 1;
@@ -1109,41 +1194,40 @@ static int src_line_parser(char *text)
 			/*	Open include file.
 			 *	****************** */	
 
-			fn_macro	= (char *) malloc(strlen(keyword_uc) + 3);
+			fn_macro = (char *) malloc(strlen(p_string_uc) + 3);
 
 			if (fn_macro != NULL)
 			{
-				strcpy(fn_macro, keyword_uc);
+				strcpy(fn_macro, p_string_uc);
 				strcat(fn_macro, ".m");
-
 				if ((in_fp[file_level] = fopen(fn_macro, "r")) == NULL)
 				{
 					--file_level;				/*	Restore. */
 					file_openned	= 0;
 				}
 
-				/*	Open include file, and check for error.
-				 *	--------------------------------------- */
+				/* Open include file, and check for error.
+				 * --------------------------------------- */
 				if (file_openned)
 				{
-					/*	Allocate memory for the input file name.
-					 *	*/	
-					in_fn[file_level]	= (char *) malloc(strlen(fn_macro) + 1);
+					/* Allocate memory for the input file name.
+					 * */	
+					in_fn[file_level] = (char *) malloc(strlen(fn_macro) + 1);
 
-					/*	Check for memory allocation error.
-					 *	--------------------------------- */	
+					/* Check for memory allocation error.
+					 * --------------------------------- */	
 					if (in_fn[file_level] != NULL)
 					{
 						strcpy(in_fn[file_level], fn_macro);	/*	Save input file name. */
-
+						codeline[file_level]	= 0;
 #if 0
-						/*	- Check if macro have paramaters.
-						 *	- If macro have parameters, warn user that macro
-						 *	  parameters are not supported.
-						 *	------------------------------------------------ */
+						/* - Check if macro have paramaters.
+						 * - If macro have parameters, warn user that macro
+						 *   parameters are not supported.
+						 * ------------------------------------------------ */
 						if (strlen(equation) > 0)
 						{
-							msg_warning_s(	"Macro parameters are not supported!",
+							msg_warning_s("Macro parameters are not supported!",
 								  				WC_MPNS, equation);
 						}
 #endif
@@ -1168,7 +1252,6 @@ static int src_line_parser(char *text)
 		else
 		{
 			--file_level;				/*	Abort "include". */
-
 			msg_error("Include overflow!", EC_IOF);
 		}
 
@@ -1179,7 +1262,7 @@ static int src_line_parser(char *text)
 		 *	  label processing.
 		 *	------------------------------------------------------ */
 		if (util_is_cs_enable() != 0)
-			process_label(label);
+			process_label(p_label);
 
 		/*	If trying as a macro fails...
 		 *	----------------------------- */
@@ -1188,23 +1271,29 @@ static int src_line_parser(char *text)
 			type		= COMMENT;
 			status	= COMMENT;
 
-			msg_error_s("Can't find keyword", EC_CNFK, keyword);
+			msg_error_s("Can't find keyword", EC_CNFK, p_string);
 		}
 	}
+
+	free(p_string);
+	free(p_string_uc);
+	free(p_equation);
+	free(p_label);
 
 	return (status);
 }
 
 
 /*	*************************************************************************
- *	Function name:	PrintList
+ *	Function name:	print_list
  *
  *	Description:	- Output list format.
- *						  [addr] [bn] [bn] [bn] [b4] lab^topcode^taddr^tcomment
+ *						  <Src line> <#cycles/#cycles> <Addr> <code, code, ...>
+ *						  <Label> <Opcode> <Operand> <Comment>
  *
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	6 January 2012
+ *	Last modified:	1 June 2013
  *
  *	Parameters:		char *text:
  *							...
@@ -1217,7 +1306,7 @@ static int src_line_parser(char *text)
  *	Notes:
  *	************************************************************************* */
 
-static void PrintList(char *text)
+static void print_list(char *text)
 {
 	STACK	*LStack	= ByteWordStack;
 	int	space		= 0;
@@ -1231,7 +1320,20 @@ static void PrintList(char *text)
 	{
 		case COMMENT:
 			if (list != NULL)
-				fprintf(list, "\t\t\t%s\n", text);
+			{
+				char	str_gap[8];
+
+				/*	- Check if we have to print Instruction Number of
+				 *	  Cycles, and prepare to print accordingly.
+				 *	------------------------------------------------- */
+				if (print_inc != 0)
+					strcpy(str_gap, "      ");
+				else
+					*str_gap = '\0';
+
+				fprintf(	list, "%6d %s\t\t\t%s\n", codeline[file_level],
+					  		str_gap, text);
+			}
 
 			break;
 
@@ -1243,21 +1345,64 @@ static void PrintList(char *text)
 
 					if (list != NULL)
 					{
-						fprintf(	list, "%6d %04X %02X\t\t%s\n", codeline[file_level],
-							  		target.pc, b1, text);
+						char		str_inc[16];
+
+						/*	- Check if we have to print Instruction Number of
+						 *	  Cycles, and prepare to print accordingly.
+						 *	------------------------------------------------- */
+						if (print_inc != 0)
+						{
+							uint8_t	inst_cyc[2];
+
+							/*	Get current Instruction Number of Cycles.
+							 *	*/
+							opcode_get_inst_cyc(inst_cyc);
+
+							if (inst_cyc[0] == inst_cyc[1])
+								sprintf(str_inc, "%2d    ", inst_cyc[0]);
+							else
+								sprintf(str_inc, "%2d/%2d ", inst_cyc[0], inst_cyc[1]);
+						}
+						else
+							*str_inc	= '\0';
+
+						fprintf(	list, "%6d %s%04X %02X\t\t%s\n",
+							  		codeline[file_level], str_inc, target.pc,
+								  	b1, text);
 					}
 
 					break;
 
 				case 2:
 					check_new_pc(data_size);		/*	Check the new PC value. */
-
 					if (list != NULL)
 					{
-						fprintf(	list, "%6d %04X %02X %02X\t%s\n",
-									codeline[file_level], target.pc, b1, b2, text);
-					}
+						char		str_inc[16];
 
+						/*	- Check if we have to print Instruction Number of
+						 *	  Cycles, and prepare to print accordingly.
+						 *	------------------------------------------------- */
+						if (print_inc != 0)
+						{
+							uint8_t	inst_cyc[2];
+
+							/*	Get current Instruction Number of Cycles.
+							 *	*/
+							opcode_get_inst_cyc(inst_cyc);
+
+							if (inst_cyc[0] == inst_cyc[1])
+								sprintf(str_inc, "%2d    ", inst_cyc[0]);
+							else
+								sprintf(str_inc, "%2d/%2d ", inst_cyc[0], inst_cyc[1]);
+						}
+						else
+							*str_inc	= '\0';
+
+						/*fprintf(list,"%6d %s%04X %02X %02X\t\t%s\n",*/
+						fprintf(list,"%6d %s%04X %02X %02X\t%s\n",
+							  		codeline[file_level], str_inc, target.pc,
+								  	b1, b2, text);
+					}
 					break;
 
 				case 3:
@@ -1265,29 +1410,53 @@ static void PrintList(char *text)
 
 					if (list != NULL)
 					{
-						fprintf(	list, "%6d %04X %02X %02X %02X\t%s\n",
-									codeline[file_level], target.pc, b1, b2, b3, text);
+						char		str_inc[16];
+
+						/*	- Check if we have to print Instruction Number of
+						 *	  Cycles, and prepare to print accordingly.
+						 *	------------------------------------------------- */
+						if (print_inc != 0)
+						{
+							uint8_t	inst_cyc[2];
+
+							/*	Get current Instruction Number of Cycles.
+							 *	*/
+							opcode_get_inst_cyc(inst_cyc);
+
+							if (inst_cyc[0] == inst_cyc[1])
+								sprintf(str_inc, "%2d    ", inst_cyc[0]);
+							else
+								sprintf(str_inc, "%2d/%2d ", inst_cyc[0], inst_cyc[1]);
+						}
+						else
+							*str_inc	= '\0';
+
+						fprintf(	list, "%6d %s%04X %02X %02X %02X\t%s\n",
+							  		codeline[file_level], str_inc, target.pc,
+								  	b1, b2, b3, text);
 					}
 
 					break;
 
-				case 4:
-					check_new_pc(data_size);		/*	Check the new PC value. */
-
-					if (list != NULL)
-					{
-						fprintf(	list, "%6d %04X %02X %02X %02X %02X\t%s\n",
-									codeline[file_level], target.pc, b1, b2, b3, b4,
-								  	text);
-					}
-
-					break;
-
-				/* 0
-				 * - */
+				/*	- Notes: We assume source line hold "EQU" or "ORG",
+				 *	  and bytes must be displayed using Big Endian.
+				 *	--------------------------------------------------- */
 				default:
 					if (list != NULL)
-						fprintf(list, "            %02X %02X\t%s\n", b2, b1, text);
+					{
+						char	str_gap[8];
+
+						/*	- Check if we have to print Instruction Number of
+						 *	  Cycles, and prepare to print accordingly.
+						 *	------------------------------------------------- */
+						if (print_inc != 0)
+							strcpy(str_gap, "      ");
+						else
+							*str_gap = '\0';
+
+						fprintf(	list, "%6d %s     %02X %02X\t%s\n",
+							  		codeline[file_level], str_gap, b2, b1, text);
+					}
 
 					break;
 			}
@@ -1296,7 +1465,40 @@ static void PrintList(char *text)
 		case LIST_ONLY:
 		case PROCESSED_END:
 			if (list != NULL)
-				fprintf(list, "\t\t\t%s\n", text);
+			{
+				char	str_gap[8];
+				int	src_line;
+
+				/*	- Set the source line to display.
+				 *	- If we are inside in an "include" file, and
+				 *	  "codeline[file_level]" is 0, this mean that "INCLUDE"
+				 *	  directive have just been processed, and source line
+				 *	  number to display is in "codeline[file_level - 1]"
+				 *	  instead of "codeline[file_level]".
+				 *	------------------------------------------------------ */	  
+				if (file_level > 0)
+				{
+					src_line	=	(codeline[file_level] > 0) ?
+					  				codeline[file_level] : codeline[file_level - 1];
+				}
+				else
+					src_line	=	codeline[file_level];
+				
+				/*	- Check if we have to print Instruction Number of
+				 *	  Cycles, and prepare to print accordingly.
+				 *	------------------------------------------------- */
+				if (print_inc != 0)
+					strcpy(str_gap, "      ");
+				else
+					*str_gap = '\0';
+
+				/*	Check if "text" contain something, and print accordingly.
+				 *	--------------------------------------------------------- */
+				if (strlen(text) > 0)
+					fprintf(list, "%6d %s    \t\t%s\n", src_line, str_gap, text);
+				else
+					fprintf(list, "%6d\n", src_line);
+			}
 
 			break;
 
@@ -1316,8 +1518,18 @@ static void PrintList(char *text)
 
 			if (list != NULL)
 			{
-				fprintf(	list, "%6d %04X\t\t%s\n", codeline[file_level],
-					  		target.pc, text);
+				char	str_gap[8];
+
+				/*	- Check if we have to print Instruction Number of
+				 *	  Cycles, and prepare to print accordingly.
+				 *	------------------------------------------------- */
+				if (print_inc != 0)
+					strcpy(str_gap, "      ");
+				else
+					*str_gap = '\0';
+
+				fprintf(	list, "%6d %s%04X\t\t%s\n", codeline[file_level],
+					  		str_gap, target.pc, text);
 			}
 
 			break;
@@ -1333,7 +1545,9 @@ static void PrintList(char *text)
 			while (LStack->next)
 			{
 				if ((type == LIST_BYTES) || (type == LIST_STRINGS))
+				{
 					data_size++;
+				}
 				/*	Assuming this is a "WORD".
 				 *	-------------------------- */
 				else
@@ -1350,10 +1564,20 @@ static void PrintList(char *text)
 
 			if (list != NULL)
 			{
-				fprintf(	list, "%6d %04X\t\t%s\n", codeline[file_level],
-					  		target.pc, text);
+				char	str_gap[8];
 
-				fprintf(list, "            ");
+				/*	- Check if we have to print Instruction Number of
+				 *	  Cycles, and prepare to print accordingly.
+				 *	------------------------------------------------- */
+				if (print_inc != 0)
+					strcpy(str_gap, "      ");
+				else
+					*str_gap = '\0';
+
+				fprintf(	list, "%6d %s%04X\t\t%s\n", codeline[file_level],
+					  		str_gap, target.pc, text);
+
+				fprintf(list, "       %s     ", str_gap);
 			}
 
 			/*	Process all elements in the linked list.
@@ -1380,7 +1604,7 @@ static void PrintList(char *text)
 						fprintf(list, "%02X ", LStack->word >> 8);
 					}
 
-					space				+= 5;
+					space		+= 5;
 				}
 
 				LStack = (STACK *) LStack->next;
@@ -1390,7 +1614,15 @@ static void PrintList(char *text)
 				if (space >= (4 * 3))
 				{
 					if (list != NULL)
-						fprintf(list, "\n            ");
+					{
+						/*	- Check if we have to print Instruction Number of
+						 *	  Cycles, and print accordingly.
+						 *	------------------------------------------------- */
+						if (print_inc != 0)
+							fprintf(list, "\n                  ");
+						else
+							fprintf(list, "\n            ");
+					}
 
 					space = 0;
 				}
@@ -1564,8 +1796,8 @@ void ProcessDumpHex(char end_of_asm)
 
 static void DumpBin(void)
 {
-	STACK	*DLStack;
-	STACK	*LStack	= ByteWordStack;
+STACK	*DLStack;
+STACK	*LStack	= ByteWordStack;
 
 
 	switch (type)
@@ -1636,7 +1868,7 @@ static void DumpBin(void)
 			{
 				if ((type == LIST_BYTES) || (type == LIST_STRINGS))
 				{
-					Image[target.pc]	= LStack->word & 0xFF;
+					Image[target.pc] = LStack->word & 0xFF;
 					update_pc(1);
 				}
 				/*	Assuming "LIST_WORDS".
@@ -1644,9 +1876,9 @@ static void DumpBin(void)
 				 *	---------------------------------------------- */
 				else
 				{
-					Image[target.pc]	= (char) (LStack->word & 0xFF);
+					Image[target.pc] = (char) (LStack->word & 0xFF);
 					update_pc(1);
-					Image[target.pc]	= (char) (LStack->word >> 8);
+					Image[target.pc] = (char) (LStack->word >> 8);
 					update_pc(1);
 				}
 
@@ -1667,7 +1899,7 @@ static void DumpBin(void)
 					DLStack	= LStack;
 				} while (LStack);
 
-				LStack			= ByteWordStack;
+				LStack		= ByteWordStack;
 				LStack->next	= NULL;
 			}
 			break;
@@ -1683,7 +1915,7 @@ static void DumpBin(void)
  *	Description:	Assemble source file.
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2011
+ *	Last modified:	1 June 2013
  *	Parameters:		void
  *	Returns:			void
  *	Globals:
@@ -1692,11 +1924,11 @@ static void DumpBin(void)
 
 static void do_asm(void)
 {
-	char		*p_text;
-	char		*p_text_1;
-	int		EmitBin;
-	int		eol_found;			/*	End Of Line Found. */
-	size_t	str_len;
+char	*p_text;
+char	*p_text_1;
+int	EmitBin;
+int	eol_found;			/*	End Of Line Found. */
+size_t	str_len;
 
 
 	/*	- Allocated memory for source line buffer, and check for
@@ -1714,7 +1946,7 @@ static void do_asm(void)
 	while (1)
 	{
 		EmitBin	= LIST_ONLY;
-		type 		= LIST_ONLY;
+		type 	= LIST_ONLY;
 		codeline[file_level]++;
 
 		/*	- Get a source file line.
@@ -1731,12 +1963,12 @@ static void do_asm(void)
 				/*	Close input file handle.
 				 *	------------------------ */	
 				fclose(in_fp[file_level]);
-				in_fp[file_level]	= NULL;
+				in_fp[file_level] = NULL;
 
 				/*	Free memory allocated for the input file name.
 				 *	---------------------------------------------- */	
 				free(in_fn[file_level]);
-				in_fn[file_level]	= NULL;
+				in_fn[file_level] = NULL;
 
 				file_level--;
 				continue;			/*	Restart assembly process at lower level. */
@@ -1768,8 +2000,8 @@ static void do_asm(void)
 		/*	Check if we was able to grab all the source line.
 		 *	************************************************* */
 
-		p_text_1		= p_text;
-		eol_found	= 0;
+		p_text_1 = p_text;
+		eol_found = 0;
 
 		/*	Search for End Of Line.
 		 *	Notes: Some times a line can terminate with EOF!	
@@ -1777,7 +2009,7 @@ static void do_asm(void)
 		while (*p_text_1 != '\0')
 		{
 			if (*(p_text_1++) == '\n')
-				eol_found	= 1;
+				eol_found = 1;
 		}
 
 		/*	- If No end of line was found and not all file was read,
@@ -1824,7 +2056,7 @@ static void do_asm(void)
 		 *	  immediatly.  This will be done later...
 	 	 *	------------------------------------------------------ */	 
 		if (EmitBin != PROCESSED_END)
-			PrintList(p_text);
+			print_list(p_text);
 
 		if (util_is_cs_enable() == 1)
 			DumpBin();
@@ -1841,7 +2073,7 @@ static void do_asm(void)
 					  				WC_EDFIIF);
 			}
 
-			PrintList(p_text);
+			print_list(p_text);
 			ProcessDumpBin();
 			ProcessDumpHex(1);
 
@@ -1878,11 +2110,11 @@ static void do_asm(void)
 			break;						/*	Terminate assembly process. */
 		}
 
-		data_size	=
-	  	b1				=
-	  	b2				=
-	  	b3				=
-	  	b4				= 0;
+		data_size=
+	  	b1	=
+	  	b2	=
+	  	b3	=
+	  	b4	= 0;
 	}
 
 	free(p_text);		/*	Free allocated memory. */
@@ -1894,7 +2126,7 @@ static void do_asm(void)
  *	Description:		Display Help.
  *	Author(s):			Jay Cotton, Claude Sylvain
  *	Created:				2007
- *	Last modified:		17 December 2011
+ *	Last modified:		30 May 2013
  *	Parameters:			void
  *	Returns:				void
  *	Globals:
@@ -1909,6 +2141,7 @@ static void display_help(void)
 	printf("  -I<dir>      : Add directory to the include file search path.\n");
 	printf("  -l<filename> : Generate listing file.\n");
 	printf("  -o<filename> : Define output files (optionnal).\n");
+	printf("  -P           : Print instruction #cycles in listing file.\n");
 	printf("  -v           : Display version.\n");
 }
 
@@ -1927,8 +2160,8 @@ static void display_help(void)
 
 static void display_version(void)
 {
-	printf(	"%s version %d.%d.%d\n", name_pgm, pgm_version_v,
-		  		pgm_version_sv, pgm_version_rn);
+	printf(	"%s version %d.%d.%d %s %s\n", name_pgm, pgm_version_v,
+		  		pgm_version_sv, pgm_version_rn,__DATE__,__TIME__);
 }
 
 
@@ -1937,7 +2170,7 @@ static void display_version(void)
  *	Description:	Assembler Pass #1.
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	24 December 2011
+ *	Last modified:	1 June 2013
  *	Parameters:		void
  *	Returns:			void
  *	Globals:
@@ -1948,8 +2181,11 @@ static void asm_pass1(void)
 {
 	int	i;
 
-	for (i = 0; i < FILES_LEVEL_MAX; i++)
-		codeline[i]	= 0;
+	/*	- Notes: Only "codeline" level 0 need to be clear, since
+	 *	  all other "codeline" level are cleared at time file "INCLUDE"
+	 *	  directive is processed.
+	 *	*/
+	codeline[0]	= 0;
 
 	target.addr			= 0;
 	target.pc			= 0x0000;
@@ -1969,7 +2205,7 @@ static void asm_pass1(void)
  *	Description:	Assembler Pass #2.
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	24 December 2011
+ *	Last modified:	1 June 2013
  *	Parameters:		void
  *	Returns:			void
  *	Globals:
@@ -1980,14 +2216,17 @@ static void asm_pass2(void)
 {
 	int	i;
 
-	for (i = 0; i < FILES_LEVEL_MAX; i++)
-		codeline[i]	= 0;
+	/*	- Notes: Only "codeline" level 0 need to be clear, since
+	 *	  all other "codeline" level are cleared at time file "INCLUDE"
+	 *	  directive is processed.
+	 *	*/
+	codeline[0]	= 0;
 
-	target.addr			= 0;
-	target.pc			= 0x0000;
-	target.pc_org		= 0x0000;
-	target.pc_lowest	= 0xFFFF;
-	target.pc_highest	= 0;
+	target.addr	= 0;
+	target.pc	= 0x0000;
+	target.pc_org	= 0x0000;
+	target.pc_lowest= 0xFFFF;
+	target.pc_highest= 0;
 	type					= LIST_ONLY;
 	asm_pass				= 1;
 
@@ -2083,7 +2322,7 @@ static int process_option_i(char *text)
 
 		if (p_option_i->next != NULL)
 		{
-			/*	Init. newly created structure "nexẗ" member to NULL.
+			/*	Init. newly created structure "nexáº—" member to NULL.
 			 *	---------------------------------------------------- */
 			p_option_i			= p_option_i->next;
 			p_option_i->path	= NULL;
@@ -2748,7 +2987,7 @@ static int process_input_file(char *text)
  *	Function name:	cmd_line_parser
  *	Description:	Command Line Parser.
  *	Author(s):		Claude Sylvain
- *	Created:			31 December 2010
+ *	Created:		31 December 2010
  *	Last modified:	1 January 2012
  *
  *	Parameters:		int argv:
@@ -2768,7 +3007,7 @@ static int process_input_file(char *text)
 
 static int cmd_line_parser(int argc, char *argv[])
 {
-	int	rv		= -1;
+	int	rv	= -1;
 	int	pgm_par_cnt;		/*	Program Parameter Count. */
 
 
@@ -2776,8 +3015,8 @@ static int cmd_line_parser(int argc, char *argv[])
 	 *	-------------------------- */	
 	if (argc > 1)
 	{
-		pgm_par_cnt		= argc - 1;
-		argv++;								/*	Select first program parameter. */
+		pgm_par_cnt	= argc - 1;
+		argv++;			/*	Select first program parameter. */
 
 		/*	Process program parameters.
 		 *	--------------------------- */	
@@ -2806,6 +3045,13 @@ static int cmd_line_parser(int argc, char *argv[])
 							process_option_o(*argv);
 							break;
 
+						/*	"-P" option.
+						 *	Print Instruction Number of Cycles.
+						 *	----------------------------------- */
+						case 'P':
+							print_inc	= 1;
+							break;
+
 						/*	- On "-h" option of unknown option, display
 						 *	  help and exit.
 						 *	------------------------------------------- */	 
@@ -2824,7 +3070,6 @@ static int cmd_line_parser(int argc, char *argv[])
 							rv				= 0;		/*	Just display.  Do not assemble. */
 							pgm_par_cnt	= 0;		/*	Force Exit. */
 							break;
-
 					}
 
 					break;
@@ -2874,10 +3119,10 @@ static int cmd_line_parser(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-	init();						/*	Initialize module. */
-	if_true[0]		= 1;		/*	"IF" nesting base level (always TRUE). */ 
+	init();				/*	Initialize module. */
+	if_true[0]	= 1;		/*	"IF" nesting base level (always TRUE). */ 
 
-	Symbols			= (SYMBOL *) calloc(1, sizeof(SYMBOL));
+	Symbols		= (SYMBOL *) calloc(1, sizeof(SYMBOL));
 	ByteWordStack	= (STACK *) calloc(1, sizeof(STACK));
 
 	/*	Check for memory allocation error.
@@ -2912,10 +3157,7 @@ int main(int argc, char *argv[])
 	}
 
 	asm_dir_cleanup();		/*	"asm_dir" module Cleanup. */
-	clean_up();					/*	Clean Up module. */
+	clean_up();			/*	Clean Up module. */
 
 	return (0);
 }
-
-
-

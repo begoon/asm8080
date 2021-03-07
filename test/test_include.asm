@@ -9,6 +9,11 @@
 	include	empty2.asm
 	include	empty3.asm			;This is a comment.
 
+	;- Include that file to test for ""END" directive found inside an
+	;  include file!" Warning.
+	;
+;	include empty4.asm
+
 
 	org	0FFFEh
 

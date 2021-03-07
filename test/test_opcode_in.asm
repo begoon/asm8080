@@ -8,7 +8,7 @@
 	in	0
 	in	0AAH
 	in	0FFH
-	in	0FFFFH
+	in	0FFFFH		;Operand over range.
 
 
 

@@ -8,7 +8,7 @@
  *	************************************************************************* */
 
 /*
- * Copyright (c) <2007-2012> <jay.cotton@oracle.com>
+ * Copyright (c) <2007-2017> Jay Cotton<lbmgmusic@gmail.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -102,16 +102,13 @@ static void print_msg(const char *str_type, char *msg, int code)
 
 	if (list != NULL)
 	{
-		fprintf(	list,
-						"*** %s %d in \"%s\": %s\n", str_type,
+		fprintf(list, "*** %s %d in \"%s\": %s\n", str_type,
 					code, in_fn[file_level], msg);
 	}
 
-	fprintf(	stderr,
-				"*** %s %d in \"%s\" @%d: %s\n", str_type,
+	fprintf(stderr, "*** %s %d in \"%s\" @%d: %s\n", str_type,
 				code, in_fn[file_level], codeline[file_level],
 				msg);
-	exit(1);
 }
 
 
@@ -150,15 +147,12 @@ static void print_msg_c(const char *str_type, char *msg, int code, char c)
 
 	if (list != NULL)
 	{
-		fprintf(	list,
-					"*** %s %d in \"%s\": %s (\"%c\")\n", str_type,
+		fprintf(list, "*** %s %d in \"%s\": %s (\"%c\")\n", str_type,
 					code, in_fn[file_level], msg, c);
 	}
 
-	fprintf(	stderr,
-				"*** %s %d in \"%s\" @%d: %s (\"%c\")\n", str_type,
+	fprintf(stderr, "*** %s %d in \"%s\" @%d: %s (\"%c\")\n", str_type,
 				code, in_fn[file_level], codeline[file_level], msg, c);
-	exit(1);
 }
 
 
@@ -197,15 +191,12 @@ static void print_msg_s(const char *str_type, char *msg, int code, char *s)
 
 	if (list != NULL)
 	{
-		fprintf(	list,
-					"*** %s %d in \"%s\": %s (\"%s\")\n", str_type,
+		fprintf(list, "*** %s %d in \"%s\": %s (\"%s\")\n", str_type,
 					code, in_fn[file_level], msg, s);
 	}
 
-	fprintf(	stderr,
-				"*** %s %d in \"%s\" @%d: %s (\"%s\")\n", str_type,
+	fprintf(stderr, "*** %s %d in \"%s\" @%d: %s (\"%s\")\n", str_type,
 				code, in_fn[file_level], codeline[file_level], msg, s);
-	exit(1);
 }
 
 
@@ -244,15 +235,12 @@ static void print_msg_d(const char *str_type, char *msg, int code, int d)
 
 	if (list != NULL)
 	{
-		fprintf(	list,
-					"*** %s %d in \"%s\": %s (%d)\n", str_type,
+		fprintf(list, "*** %s %d in \"%s\": %s (%d)\n", str_type,
 					code, in_fn[file_level], msg, d);
 	}
 
-	fprintf(	stderr,
-				"*** %s %d in \"%s\" @%d: %s (%d)\n", str_type,
+	fprintf(stderr, "*** %s %d in \"%s\" @%d: %s (%d)\n", str_type,
 				code, in_fn[file_level], codeline[file_level], msg, d);
-	exit(1);
 }
 
 

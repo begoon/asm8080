@@ -8,7 +8,7 @@
  *	************************************************************************* */
 
 /*
- * Copyright (c) <2007-2012> <jay.cotton@oracle.com>
+ * Copyright (c) <2007-2017> Jay Cotton <lbmgmusic@gmail.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -403,7 +403,7 @@ void process_label(char *label)
 	else
 	{
 		Local = FindLabel(label);
-
+#if 0
 		if ((Local != NULL) && (Local->Symbol_Value != target.pc))
 		{
 			msg_error_s("Phasing error!", EC_PE, label);
@@ -413,6 +413,7 @@ void process_label(char *label)
 			Local->Symbol_Value	= target.pc;
 			Local->Symbol_Type	= SYMBOL_LABEL;
 		}
+#endif
 	}
 }
 
@@ -438,9 +439,9 @@ void process_label(char *label)
 
 int util_get_number_base_inc(char *text)
 {
-	int	rv			= -1;
-	int	c_num		= 0;
-	int	c;
+int	rv	= -1;
+int	c_num	= 0;
+int	c;
 
 
 	/*	Search for the last number character.
@@ -455,8 +456,8 @@ int util_get_number_base_inc(char *text)
 	 *	------------------------------- */	
 	if (c_num > 0)
 	{
-		--text;								/*	Pos. to last character. */
-		c	= toupper((int) *text);		/*	Working copy of last character. */
+		--text;					/*	Pos. to last character. */
+		c = toupper((int) *text);		/*	Working copy of last character. */
 
 		/*	- If last character is a decimal digit, this mean that
 		 *	  the number is a decimal number with no numerical base
@@ -464,7 +465,7 @@ int util_get_number_base_inc(char *text)
 		 * ------------------------------------------------------- */	 
 		if (isdigit(c))
 		{
-			rv	= 10;
+			rv = 10;
 		}
 		/*	- This is not a number expressed in the default
 		 *	  decimal base.
@@ -490,9 +491,10 @@ int util_get_number_base_inc(char *text)
 				{
 					case 'B':	rv	= 2;	break;	/*	Binary base. */
 					case 'Q':	rv	= 8;	break;	/*	Octal base. */
+					case 'O':	rv	= 8;	break;  /* Octal another way */
 					case 'D':	rv	= 10;	break;	/*	Decimal base. */
 					case 'H':	rv	= 16;	break;	/*	Hexadecimal base. */
-					default:					break;	
+					default:	rv = 10;	break;	
 				}
 			}
 		}

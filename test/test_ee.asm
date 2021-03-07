@@ -13,7 +13,7 @@ TEST_2		equ	TEST_1
 ;	lxi	TEST_2
 ;	lxi	b, TEST_2
 ;	lxi	1
-	lxi	b, 0FFFFFH
+	lxi	b, 0FFFFFH	;Operand over range.
 
 
 

@@ -100,12 +100,16 @@ TRUE	equ	1
 	db	!0FFFFh
 	endif
 
+	;No more supported (2013-04-27).
+	;-------------------------------
+	if 0
 	db	~0
 	dw	~0
 	db	~0FFh
 	dw	~0FFh
 	db	~0FFFFh
 	dw	~0FFFFh
+	endif
 
 	db	0FFFFh and 5555h
 	dw	0FFFFh and 5555h

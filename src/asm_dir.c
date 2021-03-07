@@ -2,14 +2,14 @@
  *	Module Name:	asm_dir.c
  *	Description:	Assembler Directive.
  *	Copyright(c):	See below...
- *	Author(s):		Claude Sylvain
- *	Created:			24 December 2010
- *	Last modified:	6 January 2012
+ *	Author(s):	Claude Sylvain
+ *	Created:	24 December 2010
+ *	Last modified:	1 June 2013
  * Notes:
  *	************************************************************************* */
 
 /*
- * Copyright (c) <2007-2012> <jay.cotton@oracle.com>
+ * Copyright (c) <2007-2017> Jay Cotton<lbmgmusic@gmail.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -51,6 +51,13 @@
 
 
 /*	*************************************************************************
+ *											  CONSTANTS
+ *	************************************************************************* */
+
+#define PROC_INCLUDE_TEXT_SIZE_MAX	256
+
+
+/*	*************************************************************************
  *	                          FUNCTIONS DECLARATION
  *	************************************************************************* */
 
@@ -74,7 +81,7 @@ static int proc_end(char *, char *);
 
 
 /*	*************************************************************************
- *												 CONST
+ *			 CONST
  *	************************************************************************* */
 
 /*	Public "const".
@@ -84,12 +91,12 @@ static int proc_end(char *, char *);
  *	--------------------- */ 	
 const keyword_t	asm_dir[] =
 {
-	{"EQU", proc_equ},				{"DB", proc_db},
-	{"DW", proc_dw},					{"END", proc_end},
-  	{"INCLUDE", proc_include},		{"MACRO", proc_macro},
-	{"ORG", proc_org},				{"DS", proc_ds},
-	{"IF", proc_if},					{"ENDM", proc_endm},
-	{"ELSE", proc_else},				{"ENDIF", proc_endif},
+	{"EQU", proc_equ}, 	{"DB", proc_db},
+	{"DW", proc_dw},	{"END", proc_end},
+  	{"INCLUDE", proc_include},{"MACRO", proc_macro},
+	{"ORG", proc_org},	{"DS", proc_ds},
+	{"IF", proc_if},	{"ENDM", proc_endm},
+	{"ELSE", proc_else},	{"ENDIF", proc_endif},
 	{"SET", proc_set},
 	{0, NULL}
 };
@@ -102,8 +109,8 @@ const keyword_t	asm_dir[] =
 /*	Public variables.
  *	***************** */
 
-FILE	*fp_macro				= NULL;		/*	Macro File Pointer. */
-int	inside_macro			= 0;
+FILE	*fp_macro	= NULL;		/*	Macro File Pointer. */
+int	inside_macro	= 0;
 
 
 /*	Private variables.
@@ -120,18 +127,18 @@ static char	*fn_macro	= NULL;		/*	Macro File Name. */
 /*	*************************************************************************
  *	Function name:	proc_if
  *	Description:
- *	Author(s):		Jay Cotton, Claude Sylvain
- *	Created:			2007
- *	Last modified:	27 December 2011
+ *	Author(s):	Jay Cotton, Claude Sylvain
+ *	Created:	2007
+ *	Last modified:	17 May 2013
  *
- *	Parameters:		char *label:
- *							...
+ *	Parameters:	char *label:
+ *				...
  *
- *						char *equation:
- *							...
+ *		        char *equation:
+ *				...
  *
- *	Returns:			int:
- *							...
+ *	Returns:	int:
+ *				...
  *
  *	Globals:
  *	Notes:
@@ -139,10 +146,23 @@ static char	*fn_macro	= NULL;		/*	Macro File Name. */
 
 static int proc_if(char *label, char *equation)
 {
+	int	res	= exp_parser(equation);
 
 	if (++if_nest < (sizeof (if_true) / sizeof (int)))
 	{
-		if_true[if_nest] = exp_parser(equation);
+#if 0
+		if_true[if_nest] = res != 0;		/*	C like behaviour. */
+#endif
+		/*	Display warning message if expression value is not Boolean.
+		 *	----------------------------------------------------------- */
+		if ((res < 0) || (res > 1))
+			msg_warning("\"IF\" directive expression result is not Boolean!", WC_IDERINB);
+
+		/*	- Notes: Only the least significant bit must be considered.
+		 *	- Ref.:	"9800301-04_8080_8085_Assembly_Language_Programming_Manual",
+		 *	  section 2-13.
+		 *	*/
+		if_true[if_nest] = res & 1;
 	}
 	else
 	{
@@ -157,18 +177,18 @@ static int proc_if(char *label, char *equation)
 /*	*************************************************************************
  *	Function name:	proc_else
  *	Description:	"ELSE" assembler directive processing.
- *	Author(s):		Claude Sylvain
- *	Created:			24 December	2010
- *	Last modified:	27 December 2011
+ *	Author(s):	Claude Sylvain
+ *	Created:	24 December	2010
+ *	Last modified:	17 May 2013
  *
- *	Parameters:		char *label:
- *							...
+ *	Parameters:	char *label:
+ *				...
  *
- *						char *equation:
- *							...
+ *			char *equation:
+ *				...
  *
- *	Returns:			int:
- *							...
+ *	Returns:	int:
+ *				...
  *
  *	Globals:
  *	Notes:
@@ -177,7 +197,6 @@ static int proc_if(char *label, char *equation)
 static int proc_else(char *label, char *equation)
 {
 	/*	Just toggle current "if_true[]" state.
-	 *	So simple :-)
 	 * */	 
 	if_true[if_nest] = (if_true[if_nest] != 0) ? 0 : 1;
 
@@ -226,7 +245,7 @@ static int proc_endif(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	29 December 2011
+ *	Last modified:	27 April 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -267,7 +286,7 @@ static int proc_db(char *label, char *equation)
 		{
 			case '\'':
 #if LANG_EXTENSION
-			case '"':
+			case '\"':
 #endif
 			{	
 				unsigned char	in_quote		= 1;		/*	Not in Quote. */
@@ -279,7 +298,7 @@ static int proc_db(char *label, char *equation)
 					/*	Check for empty string.
 					 *	----------------------- */	
 #if LANG_EXTENSION
-					if ((*equation == '\'') || (*equation == '"'))
+					if ((*equation == '\'') || (*equation == '\"'))
 #else
 					if (*equation == '\'')
 #endif
@@ -344,7 +363,7 @@ static int proc_db(char *label, char *equation)
  *	Description:
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	6 January 2012
+ *	Last modified:	27 April 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -381,7 +400,7 @@ static int proc_dw(char *label, char *equation)
 		{
 			case '\'':
 #if LANG_EXTENSION
-			case '"':
+			case '\"':
 #endif
 			{
 				int				pos			= 0;	/*	Position in word (MSB/LSB). */
@@ -394,7 +413,7 @@ static int proc_dw(char *label, char *equation)
 					/*	Check for empty string.
 					 *	----------------------- */	
 #if LANG_EXTENSION
-					if ((*equation == '\'') || (*equation == '"'))
+					if ((*equation == '\'') || (*equation == '\"'))
 #else
 					if (*equation == '\'')
 #endif
@@ -508,7 +527,7 @@ static int proc_ds(char *label, char *equation)
 
 	process_label(label);
 
-	data_size	= exp_parser(equation);	/*	Get memory to reserve. */
+	data_size = exp_parser(equation);	/*	Get memory to reserve. */
 	check_evor(data_size, 0xFFFF);		/*	Check Expression Value Over Range. */
 
 	/*	Process Intel Hexadecimal object file.
@@ -540,7 +559,7 @@ static int proc_ds(char *label, char *equation)
  *	Description:	"INCLUDE" assembler directive processing.
  *	Author(s):		Claude Sylvain
  *	Created:			27 December	2010
- *	Last modified:	28 December 2011
+ *	Last modified:	1 June 2013
  *
  *	Parameters:		char *label:
  *							...
@@ -559,9 +578,6 @@ static int proc_ds(char *label, char *equation)
 
 static int proc_include(char *label, char *equation)
 {
-#define OpenIncludeFile_TEXT_SIZE_MAX	256
-
-
 	char	*p_name;
 	char	*p_name_path;
 	int	i					= 0;
@@ -575,8 +591,8 @@ static int proc_include(char *label, char *equation)
 
 	/*	Allocate memory.
 	 *	---------------- */	
-	p_name 		= (char *) malloc(OpenIncludeFile_TEXT_SIZE_MAX);
-	p_name_path = (char *) malloc(OpenIncludeFile_TEXT_SIZE_MAX);
+	p_name 		= (char *) malloc(PROC_INCLUDE_TEXT_SIZE_MAX);
+	p_name_path = (char *) malloc(PROC_INCLUDE_TEXT_SIZE_MAX);
 
 	/*	Go further more only if able to allocate memory.
 	 *	------------------------------------------------ */
@@ -592,7 +608,7 @@ static int proc_include(char *label, char *equation)
 		return (LIST_ONLY);
 	}
 
-	memset(p_name, 0, OpenIncludeFile_TEXT_SIZE_MAX);
+	memset(p_name, 0, PROC_INCLUDE_TEXT_SIZE_MAX);
 
 	/*	Search for a quote until end of string or begining of a comment.
 	 *	---------------------------------------------------------------- */	
@@ -648,7 +664,7 @@ static int proc_include(char *label, char *equation)
 
 			/*	Update buffer index, and check for overflow.
 			 *	-------------------------------------------- */	
-			if (++i >= OpenIncludeFile_TEXT_SIZE_MAX)
+			if (++i >= PROC_INCLUDE_TEXT_SIZE_MAX)
 			{
 				msg_error("Buffer overflow!", EC_BOF);
 
@@ -688,7 +704,7 @@ static int proc_include(char *label, char *equation)
 
 			/*	Update buffer index, and check for overflow.
 			 *	-------------------------------------------- */	
-			if (++i >= OpenIncludeFile_TEXT_SIZE_MAX)
+			if (++i >= PROC_INCLUDE_TEXT_SIZE_MAX)
 			{
 				msg_error("Buffer overflow!", EC_BOF);
 
@@ -718,7 +734,7 @@ static int proc_include(char *label, char *equation)
 
 		while ((in_fp[file_level] = fopen(p_name_path,"r")) == NULL)
   		{
-			if (get_file_from_path(p_name, p_name_path, OpenIncludeFile_TEXT_SIZE_MAX) == -1)
+			if (get_file_from_path(p_name, p_name_path, PROC_INCLUDE_TEXT_SIZE_MAX) == -1)
 			{
 				--file_level;				/*	Restore. */
 				file_openned	= 0;
@@ -738,7 +754,10 @@ static int proc_include(char *label, char *equation)
 			/*	Check for memory allocation error.
 			 *	--------------------------------- */	
 			if (in_fn[file_level] != NULL)
+			{
 				strcpy(in_fn[file_level], p_name_path);	/*	Save input file name. */
+				codeline[file_level]	= 0;
+			}
 			else
 			{
 				fclose(in_fp[file_level]);		/*	Close file. */
@@ -746,7 +765,6 @@ static int proc_include(char *label, char *equation)
 				msg_error("Memory allocation error!", EC_MAE);
 			}
 		}
-
 	}
 	else
 	{
@@ -820,14 +838,14 @@ static int proc_local(char *label, char *equation)
 
 static int proc_equ(char *label, char *equation)
 {
-	SYMBOL	*Local;
-	int		tmp;
+SYMBOL	*Local;
+int	tmp;
 
 	/*	Don't do anything, if code section is desactivated.
 	 *	*/
 	if (util_is_cs_enable() == 0)	return (LIST_ONLY);
 
-	tmp	= exp_parser(equation);
+	tmp = exp_parser(equation);
 
 	check_oor(tmp, 0xFFFF);		/*	Check Operand Over Range. */
 
@@ -901,6 +919,7 @@ static int proc_equ(char *label, char *equation)
 				{
 					/*	If there is a phasing error.
 					 *	---------------------------- */	
+#if 0
 					if (tmp != Local->Symbol_Value)
 					{
 						msg_error_s("Phasing error!", EC_PE, label);
@@ -911,6 +930,7 @@ static int proc_equ(char *label, char *equation)
 					 	 *	*/	 
 						Local->Symbol_Value	= tmp;
 					}
+#endif
 				}
 				/*	"EQU" was already defined.
 				 *	Display an error message, since "EQU" can not be re-defined.
@@ -924,9 +944,9 @@ static int proc_equ(char *label, char *equation)
 			 *	------------------------------------------------------ */	
 			else if (Local->Symbol_Type == SYMBOL_NAME_SET)
 			{
-				Local->Symbol_Value	= tmp;
-				Local->Symbol_Type	= SYMBOL_NAME_EQU;
-				Local->code_line		= codeline[file_level];
+				Local->Symbol_Value = tmp;
+				Local->Symbol_Type = SYMBOL_NAME_EQU;
+				Local->code_line = codeline[file_level];
 
 				/*	Update source file name.
 				 *	************************ */
@@ -1095,6 +1115,7 @@ static int proc_set(char *label, char *equation)
 				{
 					/*	If there is a phasing error.
 					 *	---------------------------- */	
+#if 0
 					if (tmp != Local->Symbol_Value)
 					{
 						msg_error_s("Phasing error!", EC_PE, label);
@@ -1105,6 +1126,7 @@ static int proc_set(char *label, char *equation)
 					 	 *	*/	 
 						Local->Symbol_Value	= tmp;
 					}
+#endif
 				}
 				/*	"SET" was already defined, and can be re-defined.
 				 *	So, re-defined it.	
@@ -1196,7 +1218,12 @@ static int proc_org(char *label, char *equation)
 	/*	Check for Program Counter Over Range.
 	 *	------------------------------------- */	
 	if ((target.addr < 0) || (target.addr > 0xFFFF))
+#if 0
 		msg_error("Program counter over range!", EC_PCOR);
+#else
+		msg_warning("Program counter wrap around", EC_PCOR);
+		if(target.addr > 0xFFFF) target.addr = target.addr - 0xffff; 
+#endif
 
 	target.pc_org	= target.pc;
 	

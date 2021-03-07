@@ -3,22 +3,22 @@
  *
  *	Description:	- Expression Parser module.
  *
- *						- Support most of standard 8080 assembler operators.
+ *			- Support most of standard 8080 assembler operators.
  *
- *						- Support some "C" like operators, when language
- *						  extension is enable.
+ *			- Support some "C" like operators, when language
+ *			  extension is enable.
  *
  *	Copyright(c):	See below...
  *	Author(s):		Claude Sylvain
  *	Created:			27 December 2010
- *	Last modified:	4 January 2012
+ *	Last modified:	20 May 2013
  *
- *	Notes:			- This module implement an expression parser using
- *						  DAL (Direct Algebraic Logic) format.
- *						  RPN (Reverse Polish Notation) has been dropped down,
- *						  since January 2011.
+ *	Notes:		- This module implement an expression parser using
+ *			  DAL (Direct Algebraic Logic) format.
+ *			  RPN (Reverse Polish Notation) has been dropped down,
+ *			  since January 2011.
  *
- * Ref.:				http://en.wikipedia.org/wiki/Reverse_Polish_notation
+ * Ref.:		http://en.wikipedia.org/wiki/Reverse_Polish_notation
  *
  *	- Expressions can be as simple as 1, or complex like
  *	  "xyzzy"+23/7(45*3)+16<<test3
@@ -42,7 +42,7 @@
  *	************************************************************************* */
 
 /*
- * Copyright (c) <2007-2012> <jay.cotton@oracle.com>
+ * Copyright (c) <2007-2017> Jay Cotton<lbmgmusic@gmail.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -83,14 +83,14 @@
 
 
 /*	*************************************************************************
- *											  CONSTANTS
+ *  CONSTANTS
  *	************************************************************************* */
 
 #define STACK_LEVELS			8
 
 
 /*	*************************************************************************
- *												 STRUCT
+ * STRUCT
  *	************************************************************************* */
 
 struct operator_t
@@ -101,7 +101,7 @@ struct operator_t
 
 
 /*	*************************************************************************
- *												 STRUCT
+ *	 STRUCT
  *	************************************************************************* */
 
 /*	Expression Parser Stack.
@@ -115,7 +115,7 @@ struct ep_stack_t
 
 
 /*	*************************************************************************
- *												  ENUM
+ *  ENUM
  *	************************************************************************* */
 
 /*	Expression Parser Stack Operators.
@@ -123,15 +123,14 @@ struct ep_stack_t
  *	------------------------------------------------------------------------- */	
 enum Operators
 {
-	/*	Operators using a single character.
-	 *	----------------------------------- */
 	OP_ADD,
   	OP_SUB,
   	OP_MUL,
 	OP_DIV,
-
-	/*	Operators using a string.
-	 *	------------------------- */
+	OP_NOT,			/*	Binary NOT. */
+	OP_AND,			/*	Binary AND. */
+	OP_OR,			/*	Binary OR. */
+	OP_XOR,			/*	Binary XOR. */
 //	OP_NUL,			/*	Test for null (missing) macro parameters. */
 	OP_HIGH,
 	OP_LOW,
@@ -143,16 +142,19 @@ enum Operators
 	OP_LE,
 	OP_GT,
 	OP_GE,
+#if LANG_EXTENSION
 	OP_NE,
-	OP_NOT,
-	OP_AND,
-	OP_OR,
-	OP_XOR
+//	OP_NOT_LOG,		/*	Logical NOT. */
+	OP_AND_LOG,		/*	Logical AND. */
+	OP_OR_LOG		/*	Logical OR. */
+#else
+	OP_NE
+#endif
 };
 
 
 /*	*************************************************************************
- *												 CONST
+ * CONST
  *	************************************************************************* */
 
 /*	Private "const".
@@ -164,7 +166,7 @@ enum Operators
 static const struct operator_t	operator[]	=
 {
 //	{"NUL",	OP_NUL},		/*	Test for null (missing) macro parameters. */
-	{"HIGH",	OP_HIGH},
+	{"HIGH",OP_HIGH},
 	{"LOW",	OP_LOW},
 	{"MOD",	OP_MOD},
 	{"SHL",	OP_SHL},
@@ -190,6 +192,7 @@ static const struct operator_t	operator[]	=
 /*	Private functions.
  *	****************** */
 
+static int is_there_something(char *text);
 static int search_operator(char *text, int *text_bp);
 static int pop(void);
 static void push(int);
@@ -221,21 +224,60 @@ static struct ep_stack_t	*p_ep_stack	= &ep_stack;
 
 
 /*	*************************************************************************
+ *	Function name:	is_there_something
+ *	Description:	Tell if There Is Something in a string.
+ *	Author(s):		Claude Sylvain
+ *	Created:			20 May 2013
+ *	Last modified:
+ *
+ *	Parameters:		char *text:
+ *							Point to text that possibly hold something.
+ *
+ *	Returns:			int:
+ *							0:	There is nothing.	
+ *							1: Something was found.
+ *
+ *	Globals:
+ *	Notes:
+ *	************************************************************************* */
+
+static int is_there_something(char *text)
+{
+int	rv	= 0;
+
+	/*	Loop until something is found, or end of the string.
+	 *	---------------------------------------------------- */	
+	while (*text != '\0')
+	{
+		if (isspace((int) *text) != 0)
+		{
+			rv	= 1;		/*	Something found. */
+			break;
+		}
+
+		text++;
+	}
+
+	return (rv);
+}
+
+
+/*	*************************************************************************
  *	Function name:	search_operator
  *	Description:	Search for an Operator.
  *	Author(s):		Claude Sylvain
  *	Created:			28 December 2010
- *	Last modified:	26 November 2011
+ *	Last modified:	20 May 2013
  *
  *	Parameters:		char *text:
  *							Point to text that possibly hold an operator.
  *
- *						int *text_bp:
+ *				int *text_bp:
  *							Point to a variable that receive the number of
  *							text character globed, and have to be bypassed
  *							by the caller.
  *
- *	Returns:			int:
+ *	Returns:		int:
  *							-1		: No operator found.
  *							> 0	: Operator value.
  *
@@ -245,16 +287,16 @@ static struct ep_stack_t	*p_ep_stack	= &ep_stack;
 
 static int search_operator(char *text, int *text_bp)
 {
-	int	rv;
-	char	*p_text;
-	int	i				= 0;
+int	rv;
+char	*p_text;
+int	i = 0;
 
-	struct operator_t	*p_operator	= (struct operator_t *) operator;
+struct operator_t *p_operator = (struct operator_t *) operator;
 
 
-	*text_bp	= 0;
+	*text_bp = 0;
 
-	p_text	= (char *) malloc(strlen(text) + 1);
+	p_text = (char *) malloc(strlen(text) + 1);
 
 	if (p_text == NULL)
 	{
@@ -277,11 +319,11 @@ static int search_operator(char *text, int *text_bp)
 		
 	while (*text != '\0')
 	{
-		if (isalnum((int) *text) == 0)
+		if (islabelchar((int) *text) == 0)
 			break;
 
-			(*text_bp)++;
-			p_text[i++]	= toupper((int) *(text++));
+		(*text_bp)++;
+		p_text[i++] = toupper((int) *(text++));
 	}
 
 	p_text[i]	= '\0';
@@ -298,11 +340,11 @@ static int search_operator(char *text, int *text_bp)
 
 	if (p_operator->name == NULL)
 	{
-		*text_bp	= 0;
-		rv			= -1;
+		*text_bp = 0;
+		rv = -1;
 	}
 	else
-		rv	= p_operator->op;
+		rv = (p_operator->op);
 
 	free(p_text);		/*	Free allocated memory. */
 
@@ -329,9 +371,9 @@ static int search_operator(char *text, int *text_bp)
 
 int extract_byte(char *text)
 {
-	int	accum	= 0;
-	int	inc	= 0;
-	int	c;
+int	accum	= 0;
+int	inc	= 0;
+int	c;
 
 
 	/*	Get numerical base increment, if possible.
@@ -417,7 +459,7 @@ int extract_byte(char *text)
 			}
 
 			accum *= inc;
-			c		= toupper((int) *text);
+			c = toupper((int) *text);
 
 			/*	Check/Convert/Accumulate, depending of the numerical base.
 			 *	---------------------------------------------------------- */	
@@ -517,7 +559,7 @@ int extract_byte(char *text)
  *	Description:	Evaluate an expression.
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	28 December 2011
+ *	Last modified:	17 May 2013
  *	Parameters:		void
  *	Returns:			void
  *	Globals:
@@ -545,11 +587,29 @@ static void eval(void)
 				break;
 
 			case OP_MUL:
-				push(a * b);
+				push(abs(a) * abs(b));
 				break;
 
 			case OP_DIV:
 				push(a / b);
+				break;
+
+			/*	Binary "AND".
+			 *	------------- */	
+			case OP_AND:
+				push((a & b));
+				break;
+
+			/*	Binary "OR".
+			 *	------------ */	
+			case OP_OR:
+				push((a | b));
+				break;
+
+			/*	Binary "XOR".
+			 *	------------- */	
+			case OP_XOR:
+				push((a ^ b));
 				break;
 
 			case OP_SHL:
@@ -571,44 +631,46 @@ static void eval(void)
 			/*	Lower Than.
 			 *	----------- */
 			case OP_LT:
-				push(a < b);
+				push((a < b));
 				break;
 
 			/*	Lower of Equal.
 			 *	--------------- */
 			case OP_LE:
-				push(a <= b);
+				push((a <= b));
 				break;
 
 			/*	Greater Than.
 			 *	------------- */
 			case OP_GT:
-				push(a > b);
+				push((a > b));
 				break;
 
 			/*	Greater or Equal.
 			 *	----------------- */
 			case OP_GE:
-				push(a >= b);
+				push((a >= b));
 				break;
 
 			/*	Not Equal.
 			 *	---------- */
 			case OP_NE:
-				push(a != b);
+				push((a != b));
 				break;
 
-			case OP_AND:
-				push(a & b);
+#if LANG_EXTENSION
+			/*	Logical "AND".
+			 *	-------------- */	
+			case OP_AND_LOG:
+				push((a != 0) && (b != 0));		/*	C like behaviour. */
 				break;
 
-			case OP_OR:
-				push(a | b);
+			/*	Logical "OR".
+			 *	------------- */
+			case OP_OR_LOG:
+				push((a != 0) || (b != 0));		/*	C like behaviour. */
 				break;
-
-			case OP_XOR:
-				push(a ^ b);
-				break;
+#endif
 
 			default:
 				break;
@@ -640,9 +702,21 @@ static void eval(void)
 				push(-a);
 				break;
 
+			/*	Binary "NOT".
+			 *	------------- */	
 			case OP_NOT:
 				push(~a);
 				break;
+
+#if LANG_EXTENSION
+#if 0
+			/*	Logical "NOT".
+			 *	-------------- */
+			case OP_NOT_LOG:
+				push(a == 0);				/*	C like behaviour. */
+				break;
+#endif
+#endif
 
 			default:
 				break;
@@ -670,7 +744,7 @@ static void eval(void)
 
 static int add_stack(void)
 {
-	int	rv	= -1;
+int	rv	= -1;
 
 	/*	Create a new stack.
 	 *	*/	
@@ -729,7 +803,7 @@ static int remove_stack(void)
 	if (p_ep_stack != &ep_stack)
 	{
 		p_ep_stack_prev	= p_ep_stack->prev;	/*	Memoryse previous stack address. */
-		free(p_ep_stack);								/*	Free current stack. */
+		free(p_ep_stack);			/*	Free current stack. */
 
 		/*	Set current stack address to the previous stack address.
 		 *	*/
@@ -749,14 +823,14 @@ static int remove_stack(void)
  *	Description:	DAL (Direct Algebraic Logic) Expression Parser.
  *	Author(s):		Jay Cotton, Claude Sylvain
  *	Created:			2007
- *	Last modified:	29 December 2011
+ *	Last modified:	20 May 2013
  *
  *	Parameters:		char *text:
- *							- Point to a string that hold expression to parse
- *							  and evaluate.
+ *				- Point to a string that hold expression to parse
+ *			  and evaluate.
  *
- *	Returns:			int:
- *							...
+ *	Returns:		int:
+ *				...
  *
  *	Globals:
  *	Notes:
@@ -765,7 +839,7 @@ static int remove_stack(void)
 
 static int dalep(char *text)
 {
-	int	msg_displayed	= 0;
+int	msg_displayed	= 0;
 
 	/*	Parse all expression.
 	 *	--------------------- */
@@ -773,6 +847,8 @@ static int dalep(char *text)
 	{
 		switch (*text)
 		{
+
+#if LANG_EXTENSION
 			/*	Single character.
 			 *	----------------- */
 			case '\'':
@@ -789,8 +865,9 @@ static int dalep(char *text)
 
 				break;
 			}
+#endif
 
-#if LANG_EXTENSION
+#if 0 && LANG_EXTENSION
 			/*	- If string is found, alert user that string can not be
 			 *	  evaluated here, and bypass that string.
 		 	 *	------------------------------------------------------- */	 
@@ -803,7 +880,7 @@ static int dalep(char *text)
 				 *	-------------- */	
 				while (1)
 				{
-					if (*text == '"')
+					if (*text == '\"')
 					{
 						text++;		/*	Bypass quote. */
 						break;
@@ -836,7 +913,8 @@ static int dalep(char *text)
 				val	= dalep(text);
 
 				remove_stack();
-				push(val);			/*	Push result into the stack	. */
+				push(val);	/*	Push result into the stack	. */
+				eval();
 
 				/*	Bypass expression(s) in parenthise(s).
 				 *	-------------------------------------- */
@@ -875,31 +953,24 @@ static int dalep(char *text)
 			/*	Handle ')'.
 			 *	----------- */	
 			case ')':
-				eval();									/*	Evaluate partial expression. */
+				eval();	/*	Evaluate partial expression. */
 				return (p_ep_stack->word[0]);
 
-			/*	- "!" character tell us that the next character is a delimitor
-			 *	  and must be considered as an ordinary character.
-			 *	  So, just gobble the '!' character, then goto keyword
+			/*	- "!" character tell that the next character must be
+			 *	  considered as normal character.
+			 *	  This enable to use label begining with a special
+			 *	  character.
+			 *	  So, just gobble the '!' character, then goto label
 			 *	  parser section.
-			 *	-------------------------------------------------------------- */
+			 *	---------------------------------------------------- */
 			case '!':
 				text++;
 				goto	dalep_01;
 
-#if LANG_EXTENSION == 0
-			/*	- '&' is a concatenation operator.
-			 *	- TODO: To implement.  For the moment, just bypass
-			 *	  this character.
-			 *	-------------------------------------------------- */
-			case '&':
-				text++;
-				goto	dalep_01;
-#endif
 
 #if LANG_EXTENSION
-			/*	"C" like "~" operators.
-			 *	----------------------- */
+			/*	"C" like "~" operators (binary NOT).
+			 *	------------------------------------ */
 			case '~':
 				push(OP_NOT);
 				text++;
@@ -908,26 +979,37 @@ static int dalep(char *text)
 			/*	"C" like "|" and "||" operators.
 			 *	-------------------------------- */
 			case '|':
-				push(OP_OR);
-				text++;
-
-				if (*text == '|')
+				/*	if "||" (logical OR)...
+				 *	----------------------- */
+				if (*(text + 1) == '|')
+				{
+					push(OP_OR_LOG);
+					text	+= 2;
+				}
+				/*	This is "|" (binary OR)...
+				 *	-------------------------- */
+				else
+				{
+					push(OP_OR);
 					text++;
+				}
 
 				break;
 
-			/*	"C" like '^' operator.
-			 *	---------------------- */
+			/*	"C" like '^' operator (binary XOR).
+			 *	----------------------------------- */
 			case '^':
 				push(OP_XOR);
 				text++;
 				break;
+#endif
 
-			/*	"C" like "==" operator and Pascal like '=' operator.
-			 *	---------------------------------------------------- */
+#if LANG_EXTENSION
+			/*	'=' operator and "C" like "==" operator.
+			 *	---------------------------------------- */
 			case '=':
 			{
-				char	nc	= *(text + 1);		/*	Next Character. */
+				char nc = *(text + 1);		/*	Next Character. */
 
 				push(OP_EQ);
 
@@ -942,9 +1024,20 @@ static int dalep(char *text)
 
 				break;
 			}
+#else
+			/*	'=' operator.
+			 *	------------- */
+			case '=':
+			{
+				push(OP_EQ);
+				text++;
+				break;
+			}
+#endif			
 
-			/*	"C" like "<<", "<=" and "<" operators.
-			 *	-------------------------------------- */
+#if LANG_EXTENSION
+			/*	'<' operator and "C" like "<=", "<<" operators.
+			 *	----------------------------------------------- */
 			case '<':
 			{
 				char	nc	= *(text + 1);		/*	Next Character. */
@@ -973,9 +1066,20 @@ static int dalep(char *text)
 
 				break;
 			}
+#else
+			/*	'<' operator.
+			 *	------------- */
+			case '<':
+			{
+				push(OP_LT);
+				text++;
+				break;
+			}
+#endif			
 
-			/*	"C" like ">>", ">=" and ">" operators.
-			 *	-------------------------------------- */
+#if LANG_EXTENSION
+			/*	'>' operator and "C" like ">=", ">>" operators.
+			 *	----------------------------------------------- */
 			case '>':
 			{
 				char	nc	= *(text + 1);		/*	Next Character. */
@@ -1004,7 +1108,18 @@ static int dalep(char *text)
 
 				break;
 			}
+#else
+			/*	'>' operator.
+			 *	------------- */
+			case '>':
+			{
+				push(OP_GT);
+				text++;
+				break;
+			}
+#endif			
 
+#if LANG_EXTENSION
 			/*	- This can be an 8080 assembler concatenation operator
 			 *	  or one of the "C" like "&" or "&&" operators.
 			 *	- Notes: There is a trick to be able to distinguish both kind
@@ -1022,11 +1137,20 @@ static int dalep(char *text)
 				if (	(*(text + 1) == 0x20) ||
 					  	((*(text + 1) == '&') && (*(text + 2) == 0x20)))
 				{
-					push(OP_AND);
-					text++;
-
-					if (*text == '&')
+					/*	if "&&" (logical AND)...
+					 *	------------------------ */
+					if (*(text + 1) == '&')
+					{
+						push(OP_AND_LOG);
+						text	+=	2;
+					}
+					/*	This is "&" (binary AND)...
+					 *	--------------------------- */
+					else
+					{
+						push(OP_AND);
 						text++;
+					}
 				}
 				/*	- '&' is a concatenation operator.
 				 *	- TODO: To implement.  For the moment, just bypass
@@ -1039,7 +1163,15 @@ static int dalep(char *text)
 				}
 
 				break;
-#endif		/*	LANG_EXTENSION */	
+#else
+			/*	- '&' is a concatenation operator.
+			 *	- TODO: To implement.  For the moment, just bypass
+			 *	  this character.
+			 *	-------------------------------------------------- */
+			case '&':
+				text++;
+				goto	dalep_01;
+#endif
 
 			case '+':
 				push(OP_ADD);
@@ -1076,7 +1208,7 @@ static int dalep(char *text)
 			case ',':
 			case ';':
 				eval();
-				return (p_ep_stack->word[0]);
+				return ( p_ep_stack->word[0]);
 
 			/*	Must be an operator, a label or a number.
 			 *	----------------------------------------- */
@@ -1090,12 +1222,17 @@ dalep_01:
 				 *	----------------------- */	
 				op	= search_operator(text, &text_bp);
 
-				/*	If an operator was found, process it.
-				 *	------------------------------------- */	
-				if (op != -1)
+				/*	- If this is an operator and there is something
+				 *	  following the operator, this probably mean that
+			 	 *	  this is really and operator (not a label).
+				 *	- Remarks: YES, that his.  Some program, like
+				 *	  the famous "als8" use operator name ("LT" and "GT")
+				 *	  as label!!!
+				 *	----------------------------------------------------- */
+				if ((op != -1) && (is_there_something((text + text_bp))))
 				{
-					push(op);				/*	Push Operator. */
-					text	+=	text_bp;		/*	Bypass operator. */
+					push(op);		/*	Push Operator. */
+					text	+=	text_bp;/*	Bypass operator. */
 				}
 				/*	No operator found.
 				 *	Search for a label.
@@ -1129,9 +1266,9 @@ dalep_01:
 							{
 								text++;
 
-								/*	- Display/Print error message, if not already done,
-								 *	  and necessary.
-								 *	--------------------------------------------------- */
+				/*	- Display/Print error message, if not already done,
+				 *	  and necessary.
+				 *	--------------------------------------------------- */
 								if (!msg_displayed && (asm_pass == 1))
 								{
 									msg_displayed	= 1;	/*	No more message. */
@@ -1170,7 +1307,9 @@ dalep_01:
 							push(Local->Symbol_Value);
 							eval();
 						}
-
+#if 0
+						return (p_ep_stack->word[0]); /* return top of stack. BUG NOTICE */
+#endif
 					}
 					/*	Label do not exist!
 					 *	------------------- */	
@@ -1182,7 +1321,6 @@ dalep_01:
 
 				}		/*	op != -1 */
 			}			/*	default. */
-
 			break;
 		}
 	}
@@ -1211,7 +1349,7 @@ dalep_01:
 
 int exp_parser(char *text)
 {
-	p_ep_stack->level	= 0;
+p_ep_stack->level	= 0;
 
 	return (dalep(text));
 }
@@ -1236,7 +1374,7 @@ int exp_parser(char *text)
 
 int extract_word(char *text)
 {
-	int	tmp;
+int	tmp;
 
 	while (isspace((int) *text))
 		text++;
@@ -1343,9 +1481,3 @@ static int pop(void)
 
 	return (value);
 }
-
-
-
-
-
-

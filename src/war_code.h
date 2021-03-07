@@ -4,12 +4,12 @@
  *	Copyright(c):	See below...
  *	Author(s):		Claude Sylvain
  *	Created:			23 December 2010
- *	Last modified:	1 January 2012
+ *	Last modified:	17 May 2013
  *	Notes:
  *	************************************************************************* */
 
 /*
- * Copyright (c) <2007-2012> <jay.cotton@oracle.com>
+ * Copyright (c) <2007-2017> Jay Cotton<lbmgmusic@gmail.com>
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -56,6 +56,7 @@
 #define WC_IFNHNE			11		/*	Input File Name Have No Extension. */
 #define WC_SAUAL			12		/*	Symbol Already Used As Label. */
 #define WC_MPNS			13		/*	Macro Parameters Not Supported. */
+#define WC_IDERINB		14		/*	"IF" Directive Expression Result Is Not Boolean. */
 
 
 
